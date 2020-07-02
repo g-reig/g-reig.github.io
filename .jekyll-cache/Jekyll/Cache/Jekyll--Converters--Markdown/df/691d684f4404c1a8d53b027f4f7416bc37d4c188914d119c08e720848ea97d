@@ -1,4 +1,4 @@
-I"I<p>FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br />
+I"\<p>Stapler 1 is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br />
 As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.</p>
 <h1>Network Scan</h1>
 <p>In this case, the machine doesn’t tell us its IP address, so I used Nmap to scan the network and find it.
@@ -88,6 +88,7 @@ The exploit was a bit weird and I had to execute it two times before I got root.
 <img src="kern3.png" alt="Kern exploit 3" />
 <img src="kern4.png" alt="Kern exploit 4" />
 <br /></p>
-<h1>
-</h1>
+<h1>Conclusion</h1>
+<p>This box has a lot of rabbit holes and can be pretty confusing if you don’t take notes.<br />
+I’ve learnt how to enumerate Samba shares and use enum4linux, as well as reminding myself to read more carefully the LinEnum output and search for writable files.</p>
 :ET

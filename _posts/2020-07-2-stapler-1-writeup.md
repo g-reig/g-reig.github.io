@@ -4,7 +4,7 @@ title:  "Stapler 1 Write-Up"
 categories: [write-ups]
 permalink: /write-ups/stapler_1_writeup/
 ---
-FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br>
+Stapler 1 is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br>
 As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.
 <h1>Network Scan</h1>
 In this case, the machine doesn't tell us its IP address, so I used Nmap to scan the network and find it.
