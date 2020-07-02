@@ -6,14 +6,14 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 02 Jul 2020 09:21:59 -0400</pubDate>
-    <lastBuildDate>Thu, 02 Jul 2020 09:21:59 -0400</lastBuildDate>
+    <pubDate>Thu, 02 Jul 2020 12:11:08 -0400</pubDate>
+    <lastBuildDate>Thu, 02 Jul 2020 12:11:08 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
     
       <item>
         <title>Stapler 1 Write-Up</title>
         <description>&lt;p&gt;Stapler 1 is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.&lt;br /&gt;
-As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.&lt;/p&gt;
+As stated in the Vulnhub page, there are 2 intended ways to obtain a limited shell and 3 intended ways to obtain root.&lt;/p&gt;
 &lt;h1&gt;Network Scan&lt;/h1&gt;
 &lt;p&gt;In this case, the machine doesn’t tell us its IP address, so I used Nmap to scan the network and find it.
 &lt;img src=&quot;netScan.png&quot; alt=&quot;Network Scan Result&quot; /&gt;
@@ -26,7 +26,7 @@ I know that 192.168.56.1 is the gateway and 192.168.56.10 is the Kali machine, s
 &lt;h1&gt;FTP Anonymous Login&lt;/h1&gt;
 &lt;p&gt;Port 21 has a ftp server with anonymous access configured, as shown in the Nmap output.
 &lt;img src=&quot;ftpNmap.png&quot; alt=&quot;FTP Nmap output&quot; /&gt;
-Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows use to read a file with two possible usernames (Elly and John).
+Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows us to read a file with two possible usernames (Elly and John).
 &lt;img src=&quot;ftpAnon1.png&quot; alt=&quot;FTP Anon 1&quot; /&gt;
 &lt;img src=&quot;ftpAnon2.png&quot; alt=&quot;FTP Anon 2&quot; /&gt;&lt;/p&gt;
 
@@ -35,7 +35,7 @@ Just from connecting we get a possible user (Harry) and using user = anonymous a
 &lt;p&gt;Reading other people write-ups I found that Elly uses the password ylle for her ftp account, but I used another method to get access.
 &lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;h1&gt;HTTP Port 80&lt;/h1&gt;
-&lt;p&gt;Here there isn’t anything interesting, using gobuster we can find that it is serving a home directory but I didn’t find anything useful.
+&lt;p&gt;Here there isn’t anything interesting, using gobuster we can find that it is serving a home directory but I didn’t find anything useful (it is the /home/www/ directory, which is world writable).
 &lt;img src=&quot;root80.png&quot; alt=&quot;Root HTTP 80&quot; /&gt;
 &lt;img src=&quot;gobuster80.png&quot; alt=&quot;Gobuster HTTP 80&quot; /&gt;
 &lt;br /&gt;&lt;/p&gt;
@@ -47,12 +47,12 @@ Just from connecting we get a possible user (Harry) and using user = anonymous a
 &lt;h1&gt;Obtaining Credentials (Method 1)&lt;/h1&gt;
 &lt;p&gt;At this point I got stucked because of the rabbit holes in the other ports (except 12380, but I will talk about this one in the second method). I tried using Hydra to bruteforce the ftp credentials, using the user list as input for both the user and the password.
 &lt;img src=&quot;hydraFTP.png&quot; alt=&quot;Hydra ftp&quot; /&gt;
-If we enter access the ftp server using these credentials we get access to the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
+If we access the ftp server using these credentials we get into the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
 I used the same method as before to bruteforce the credentials for the ssh, only to find out that SHayslett uses the same password as before for his user account.
 &lt;img src=&quot;hydraSSH.png&quot; alt=&quot;Hydra ssh&quot; /&gt;
 &lt;br /&gt;&lt;/p&gt;
 &lt;h1&gt;Method 2&lt;/h1&gt;
-&lt;p&gt;At first glance port 12380 doesn’t have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request. (I don’t know why the first screenshot doesn’t display correctly, maybe it is too big).
+&lt;p&gt;At first glance port 12380 doesn’t have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request.
 &lt;img src=&quot;root12380_1.png&quot; alt=&quot;Root HTTP 12380 1&quot; /&gt;
 &lt;img src=&quot;comment12380_1.png&quot; alt=&quot;Comment with user&quot; /&gt;
 &lt;img src=&quot;burpIntercept.png&quot; alt=&quot;Burp intercept&quot; /&gt;

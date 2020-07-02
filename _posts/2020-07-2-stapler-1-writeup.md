@@ -5,7 +5,7 @@ categories: [write-ups]
 permalink: /write-ups/stapler_1_writeup/
 ---
 Stapler 1 is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br>
-As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.
+As stated in the Vulnhub page, there are 2 intended ways to obtain a limited shell and 3 intended ways to obtain root.
 <h1>Network Scan</h1>
 In this case, the machine doesn't tell us its IP address, so I used Nmap to scan the network and find it.
 ![Network Scan Result](netScan.png)
@@ -18,7 +18,7 @@ The port scan reveals lots of open ports, including one which is unusally high.
 <h1>FTP Anonymous Login</h1>
 Port 21 has a ftp server with anonymous access configured, as shown in the Nmap output.
 ![FTP Nmap output](ftpNmap.png)
-Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows use to read a file with two possible usernames (Elly and John).
+Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows us to read a file with two possible usernames (Elly and John).
 ![FTP Anon 1](ftpAnon1.png)
 ![FTP Anon 2](ftpAnon2.png)
 {% highlight c %}
@@ -27,7 +27,7 @@ Elly, make sure you update the payload information. Leave it in your FTP account
 Reading other people write-ups I found that Elly uses the password ylle for her ftp account, but I used another method to get access.
 <br><br>
 <h1>HTTP Port 80</h1>
-Here there isn't anything interesting, using gobuster we can find that it is serving a home directory but I didn't find anything useful.
+Here there isn't anything interesting, using gobuster we can find that it is serving a home directory but I didn't find anything useful (it is the /home/www/ directory, which is world writable).
 ![Root HTTP 80](root80.png)
 ![Gobuster HTTP 80](gobuster80.png)
 <br>
@@ -39,12 +39,12 @@ Port 139 has a Samba server which allows Guest login. There isn't anything inter
 <h1>Obtaining Credentials (Method 1)</h1>
 At this point I got stucked because of the rabbit holes in the other ports (except 12380, but I will talk about this one in the second method). I tried using Hydra to bruteforce the ftp credentials, using the user list as input for both the user and the password.
 ![Hydra ftp](hydraFTP.png)
-If we enter access the ftp server using these credentials we get access to the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
+If we access the ftp server using these credentials we get into the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
 I used the same method as before to bruteforce the credentials for the ssh, only to find out that SHayslett uses the same password as before for his user account.
 ![Hydra ssh](hydraSSH.png)
 <br>
 <h1>Method 2</h1>
-At first glance port 12380 doesn't have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request. (I don't know why the first screenshot doesn't display correctly, maybe it is too big).
+At first glance port 12380 doesn't have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request.
 ![Root HTTP 12380 1](root12380_1.png)
 ![Comment with user](comment12380_1.png)
 ![Burp intercept](burpIntercept.png)
