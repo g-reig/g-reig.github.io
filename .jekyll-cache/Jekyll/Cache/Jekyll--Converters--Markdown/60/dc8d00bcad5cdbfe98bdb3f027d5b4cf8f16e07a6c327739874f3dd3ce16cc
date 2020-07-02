@@ -1,0 +1,91 @@
+I"8<p>FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br />
+As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.</p>
+<h1>Network Scan</h1>
+<p>In this case, the machine doesn’t tell us its IP address, so I used Nmap to scan the network and find it.
+<img src="netScan.png" alt="Network Scan Result" />
+I know that 192.168.56.1 is the gateway and 192.168.56.10 is the Kali machine, so 192.168.56.128 must be the target box.
+<br /><br /></p>
+<h1>Port Scan</h1>
+<p>The port scan reveals lots of open ports, including one which is unusally high. 
+<img src="allPortsScan.png" alt="Port scan result" />
+<br /></p>
+<h1>FTP Anonymous Login</h1>
+<p>Port 21 has a ftp server with anonymous access configured, as shown in the Nmap output.
+<img src="ftpNmap.png" alt="FTP Nmap output" />
+Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows use to read a file with two possible usernames (Elly and John).
+<img src="ftpAnon1.png" alt="FTP Anon 1" />
+<img src="ftpAnon2.png" alt="FTP Anon 2" /></p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">Elly</span><span class="p">,</span> <span class="n">make</span> <span class="n">sure</span> <span class="n">you</span> <span class="n">update</span> <span class="n">the</span> <span class="n">payload</span> <span class="n">information</span><span class="p">.</span> <span class="n">Leave</span> <span class="n">it</span> <span class="n">in</span> <span class="n">your</span> <span class="n">FTP</span> <span class="n">account</span> <span class="n">once</span> <span class="n">your</span> <span class="n">are</span> <span class="n">done</span><span class="p">,</span> <span class="n">John</span><span class="p">.</span></code></pre></figure>
+
+<p>Reading other people write-ups I found that Elly uses the password ylle for her ftp account, but I used another method to get access.
+<br /><br /></p>
+<h1>HTTP Port 80</h1>
+<p>Here there isn’t anything interesting, using gobuster we can find that it is serving a home directory but I didn’t find anything useful.
+<img src="root80.png" alt="Root HTTP 80" />
+<img src="gobuster80.png" alt="Gobuster HTTP 80" />
+<br /></p>
+<h1>Samba Enumeration</h1>
+<p>Port 139 has a Samba server which allows Guest login. There isn’t anything interesting inside the shares, but using enum4linux we can enumerate the users.
+<img src="smbmap.png" alt="SMBMap" />
+<img src="enum4linux.png" alt="enum4linux users" />
+<br /></p>
+<h1>Obtaining Credentials (Method 1)</h1>
+<p>At this point I got stucked because of the rabbit holes in the other ports (except 12380, but I will talk about this one in the second method). I tried using Hydra to bruteforce the ftp credentials, using the user list as input for both the user and the password.
+<img src="hydraFTP.png" alt="Hydra ftp" />
+If we enter access the ftp server using these credentials we get access to the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
+I used the same method as before to bruteforce the credentials for the ssh, only to find out that SHayslett uses the same password as before for his user account.
+<img src="hydraSSH.png" alt="Hydra ssh" />
+<br /></p>
+<h1>Method 2</h1>
+<p>At first glance port 12380 doesn’t have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request. (I don’t know why the first screenshot doesn’t display correctly, maybe it is too big).
+<img src="root12380_1.png" alt="Root HTTP 12380 1" />
+<img src="comment12380_1.png" alt="Comment with user" />
+<img src="burpIntercept.png" alt="Burp intercept" />
+Using Nikto we can see that the server wants to use HTTPS, that’s why we are getting a 400 response. Also, we can see that there is a robots.txt file with some disallowed entries.
+<img src="nikto.png" alt="Nikto" />
+The /admin112233 is a troll page, while the /blogblog has a Wordpress blog.
+<img src="blogblog.png" alt="blogblog page" />
+I used wpscan but it couldn’t find anything, so I enumerated it manually.<br />
+The wp-contents/plugins/ has directory listing enabled, so we can enumerate the plugins. Using searchsploit we can see that one of the plugins was vulnerable in its 1.0 version (I couldn’t find the version of the installed plugin, but it seems to be 1.0).
+<img src="wpplugins.png" alt="Wordpress plugins" />
+<img src="searchsploitPlugin.png" alt="Searchsploit plugin" />
+The searchsploit code didn’t work correctly, but searching in Google I found a <a href="https://raw.githubusercontent.com/gtech/39646/master/39646.py">more stable version</a> which was created for this box.
+<img src="mysqlCreds.png" alt="Exploit" />
+In the output we can see the credentials for the root user of mysql. In the Nikto output we can see that there is a phpmyadmin page, so I used the newly obtained credentials and enumerated the database (which contained interesting information, but nothing useful).<br />
+I used some SQL tricks to place a simple php shell inside the /wp-content/uploads/ directory and get RCE. (Ignore the typo in the screenshot).
+<img src="rce1.png" alt="RCE 1" />
+<img src="rce2.png" alt="RCE 2" />
+<img src="rce3.png" alt="RCE 3" />
+<img src="rce4.png" alt="RCE 4" />
+At this point we can use a reverse shell to get shell access to the box, but I only used the first method because I prefer to have a more stable shell.<br />
+Also, Zoe uses the same password as the root database user in the box, so we can get SSH access from there.
+<img src="hydraSSH2.png" alt="Hydra ssh 2" />
+<br /></p>
+<h1>PrivEsc Method 1 (.bash_history)</h1>
+<p>Reading the LinEnum output we can see all the contents of the .bash_history of all users. JKanode has two passwords there.
+<img src="bashhist.png" alt="Bash history" />
+Peter can run sudo as root.
+<img src="sudo1.png" alt="Sudo 1" />
+<img src="sudo2.png" alt="Sudo 2" />
+And from here we can read the flag inside the /root/flag.txt file.
+<br /><br /></p>
+<h1>PrivEsc Method 2 (cronjob)</h1>
+<p>Reading the cron jobs we can see that root runs the /usr/local/sbin/cron-logrotate.sh script every 5 minutes and everyone has permission to write to this file.
+<img src="cronjob.png" alt="Cronjob" />
+This can also be found using the find command.
+<img src="findWrite.png" alt="Find writable" />
+We can just grant sudo privileges to the user that we are using (zoe in my case).
+<img src="cronModified.png" alt="Cron modified" />
+<img src="zoeSudo.png" alt="Zoe sudo" />
+Just remember to remove the command from the cron-logrotate to avoid problems with the /etc/sudoers file.
+<br /><br /></p>
+<h1>PrivEsc Method 3 (Kernel exploit)</h1>
+<p>Again, reading the LinEnum output we can see the kernel version and the Ubuntu version. Using searchsploit we can see lots of exploits for this version, but most of them are for 64 bits operating systems and the one in the machine uses 32 bits.<br />
+The exploit was a bit weird and I had to execute it two times before I got root.
+<img src="kern1.png" alt="Kern exploit 1" />
+<img src="kern2.png" alt="Kern exploit 2" />
+<img src="kern3.png" alt="Kern exploit 3" />
+<img src="kern4.png" alt="Kern exploit 4" /></p>
+
+:ET

@@ -1,8 +1,7 @@
-I"-.<p>FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br /><br /></p>
+I"&.<p>FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br /><br /></p>
 <h1>Port Scan</h1>
 <p>Normally, the first thing to do when dealing with Vulnhub machines is to scan the network (I use Nmap to do so) to find the IP of the vulnerable machine, 
 but in this case the machine tells us its IP in the login prompt. 
-<br />
 <img src="allPortsScan.png" alt="Port scan result" /></p>
 
 <p>In the scan we can see that the only open port is 80, which usually is HTTP.

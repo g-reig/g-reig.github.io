@@ -1,0 +1,25 @@
+I"H<p>FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.<br />
+As stated in the Vulnhub page, there are minimum 2 ways to obtain a limited shell and 3 ways to obtain root.</p>
+<h1>Network Scan</h1>
+<p>In this case, the machine doesn’t tell us its IP address, so I used Nmap to scan the network and find it.
+<img src="netScan.png" alt="Network Scan Result" />
+I know that 192.168.56.1 is the gateway and 192.168.56.10 is the Kali machine, so 192.168.56.128 must be the target box.
+<br /><br /></p>
+<h1>Port Scan</h1>
+<p>The port scan reveals lots of open ports, including one which is unusally high. 
+<img src="allPortsScan.png" alt="Port scan result" />
+<br /></p>
+<h1>FTP Anonymous login</h1>
+<p>Port 21 has a ftp server with anonymous access configured, as shown in the Nmap output.
+<img src="ftpNmap.png" alt="FTP Nmap output" />
+Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows use to read a file with two possible usernames (Elly and John).
+<img src="ftpAnon1.png" alt="FTP Anon 1" />
+<img src="ftpAnon2.png" alt="FTP Anon 2" /></p>
+
+<figure class="highlight"><pre><code class="language-c" data-lang="c"><span class="n">Elly</span><span class="p">,</span> <span class="n">make</span> <span class="n">sure</span> <span class="n">you</span> <span class="n">update</span> <span class="n">the</span> <span class="n">payload</span> <span class="n">information</span><span class="p">.</span> <span class="n">Leave</span> <span class="n">it</span> <span class="n">in</span> <span class="n">your</span> <span class="n">FTP</span> <span class="n">account</span> <span class="n">once</span> <span class="n">your</span> <span class="n">are</span> <span class="n">done</span><span class="p">,</span> <span class="n">John</span><span class="p">.</span></code></pre></figure>
+
+<p>Reading other people write-ups I found that Elly uses the password ylle for her ftp account, but I used another method to get access.
+<br /><br /></p>
+<h1>HTTP Port 80</h1>
+
+:ET

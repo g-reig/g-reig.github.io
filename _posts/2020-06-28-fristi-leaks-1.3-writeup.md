@@ -8,7 +8,6 @@ FristiLeaks is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in 
 <h1>Port Scan</h1>
 Normally, the first thing to do when dealing with Vulnhub machines is to scan the network (I use Nmap to do so) to find the IP of the vulnerable machine, 
 but in this case the machine tells us its IP in the login prompt. 
-<br>
 ![Port scan result](allPortsScan.png)
 
 In the scan we can see that the only open port is 80, which usually is HTTP.
