@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Brainpan 1 WriteUp"
+title:  "Brainpan: 1 Write-Up"
 categories: [write-ups]
 permalink: /write-ups/brainpan_1_writeup/
 ---
