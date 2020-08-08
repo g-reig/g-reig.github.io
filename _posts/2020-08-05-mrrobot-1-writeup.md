@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "MrRobot: 1 Write-Up"
+title:  "Mr Robot: 1 Write-Up"
 categories: [write-ups]
 permalink: /write-ups/mrrobot_1_writeup/
 ---
@@ -8,7 +8,7 @@ MrRobot 1 is an intermediate OSCP-like machine (according to the [Abatchy's list
 <h1>Network Scan</h1>
 As always, I've used Nmap to sweep the network and get the IP of the target machine.
 ![NetScan](netScan.png)
-The IP of the target machine is 192.168.56.13.
+The IP of the target machine is 192.168.56.132.
 <br><br>
 <h1>Port Scan</h1>
 ![PortScan](portScan.png)

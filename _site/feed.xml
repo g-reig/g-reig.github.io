@@ -6,17 +6,83 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 05 Aug 2020 10:18:22 -0400</pubDate>
-    <lastBuildDate>Wed, 05 Aug 2020 10:18:22 -0400</lastBuildDate>
+    <pubDate>Sat, 08 Aug 2020 10:15:58 -0400</pubDate>
+    <lastBuildDate>Sat, 08 Aug 2020 10:15:58 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
     
       <item>
-        <title>MrRobot: 1 Write-Up</title>
+        <title>HackLab: Vulnix Write-Up</title>
+        <description>&lt;p&gt;HackLab: Vulnix is an intermediate rated OSCP-like machine hosted on Vulnhub (and the last rated machine on Abatchy’s list).&lt;/p&gt;
+&lt;h1&gt;Network Scan&lt;/h1&gt;
+&lt;p&gt;As always, I’ve used Nmap to sweep the network and get the IP of the target machine.
+&lt;img src=&quot;netScan.png&quot; alt=&quot;NetScan&quot; /&gt;
+The IP of the target machine is 192.168.56.133.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;portScan.png&quot; alt=&quot;PortScan&quot; /&gt;
+There are lots of open ports in this machine and most of them lead to anything. I’ll explain what can be obtained in some of them, but I don’t know how to deal with all of them.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Ports Explanation&lt;/h1&gt;
+&lt;p&gt;In port 25 there is a SMTP server which has the VRFY command enabled. This can be used to enumerate some users using dictionaries and to send malicious mails to them (as the server doesn’t have any type of authentication). I’ll show this in my writeup for SneakyMailer from HackTheBox when it gets retired.&lt;br /&gt;
+&lt;img src=&quot;mailEnum.png&quot; alt=&quot;Mail Enumeration&quot; /&gt;
+Port 79 has a Finger server, which can also be used to enumerate users in the machine. In this case we can get more information about them like the home directory, shell used… In earlier versions of it the server could be exploited to gain shell access to the machine.
+&lt;img src=&quot;fingerEnum.png&quot; alt=&quot;Finger Enumeration&quot; /&gt;
+Pop3 and IMAP are protocols used to retrieve emails (the ones with an S at the end use encryption). They can be used to read the emails of the users if we get their credentials but in this case it isn’t useful (Again, I’ll show this in the writeup for SneakyMailer).&lt;br /&gt;&lt;br /&gt;
+RSH is a protocol similar to SSH but without encryption. RSH, Finger and SMTP (sendmail) had vulnerabilities in the past that were exploited by the Morris worm, so I suppose they are running in the machine as an “Easter Egg”.&lt;br /&gt;&lt;br /&gt;
+I don’t really know what to do with the higher ports, some of them are for RPC stuff but I don’t know if they can be used to get more information.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;NFS Enumeration&lt;/h1&gt;
+&lt;p&gt;I began by running “showmount” against the machine to see what directories it was exporting. It showed the directory “/home/vulnix”, which if you recall from before is the home directory for user vulnix.
+&lt;img src=&quot;showmount.png&quot; alt=&quot;Showmount&quot; /&gt;
+I mounted the directory using NFSv4 but I couldn’t access it because I didn’t had the privileges to do so. I also saw that the owner of the directory was nobody, which means that the root_squash flag was enabled (more on that later).
+&lt;img src=&quot;nfsv4.png&quot; alt=&quot;Mounting NFSv4&quot; /&gt;
+&lt;img src=&quot;nfsv4Permissions.png&quot; alt=&quot;NFSv4 Permissions&quot; /&gt;
+NFS uses the UID and the GID to authenticate the user. The UID and GID of the user in the local machine must match with the ones in the folder that is being shared to access it. NFSv4 doesn’t give out the ids for security reasons (even though they can be bruteforced with a lot of patience), but the same cannot be said for earlier versions, so I tried to mount the directory using NFSv3.
+&lt;img src=&quot;nfsv3.png&quot; alt=&quot;Mounting NFSv3&quot; /&gt;
+Here we can see that both the UID and the GID of the folder are 2008, so I created a user in my machine that matched these values. 
+&lt;img src=&quot;addUser.png&quot; alt=&quot;User Creation&quot; /&gt;
+I changed to the new user using the su command and I got access to the directory.
+&lt;img src=&quot;directoryList.png&quot; alt=&quot;Directory List&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Alternative Method&lt;/h1&gt;
+&lt;p&gt;Reading other people writeups I found that the machine has a user called “user” which uses a weak password. Running a bruteforce attack against the SSH server (or RSH) we can get his password. From there we can get the UID and GID of the owner and the group of the folder.&lt;br /&gt;
+I didn’t use this method because the bruteforcing was going really slow and I was trying to bruteforce the credentials for root, user and vulnix, so I ended up gaining access with the first method before the bruteforce ended.
+&lt;img src=&quot;userMethod.png&quot; alt=&quot;Method 2&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Gaining SSH Access&lt;/h1&gt;
+&lt;p&gt;By default SSH uses the file inside /home/$USER/.ssh/authorized_keys to use public/private key authentication, so I added a key that I generated to try to get access to the machine without using the password.
+&lt;img src=&quot;foothold.png&quot; alt=&quot;Foothold&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
+&lt;p&gt;Running sudo -l we can see that vulnix can use sudoedit without supplying the password to edit the /etc/exports file, which is the file that defines the directories that are going to be exported by NFS.
+&lt;img src=&quot;sudo-l.png&quot; alt=&quot;sudo -l&quot; /&gt;
+I added the /root directory to the exports file with the “no_root_squash” flag enabled, which means that if we use the root user in our machine we can work as root in the directory shared with NFS (root_squash means that NFS ignores the requests made by root). 
+&lt;img src=&quot;newExports.png&quot; alt=&quot;New exports&quot; /&gt;
+To use the changes made in the exports file we need to restart the NFS service but we don’t have permission to do so and I got stuck here for a long time. Eventually I gave up and looked for some hints on the Internet, just to find that everyone restarted the VM to restart the service. I did so and I got access to the /root directory with root privileges. I knew that root login was enabled in the /etc/sshd_config file, so I used the same method as before to get SSH access.
+&lt;img src=&quot;SSHConfig.png&quot; alt=&quot;SSH Config&quot; /&gt;
+&lt;img src=&quot;showmount2.png&quot; alt=&quot;Showmount 2&quot; /&gt;
+&lt;img src=&quot;mountRoot.png&quot; alt=&quot;Mount root&quot; /&gt;
+&lt;img src=&quot;privesc.png&quot; alt=&quot;PrivEsc&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;This is a fairly difficult machine due to the amount of rabbit holes it has and the fact that you need to know a bit about NFS (and do some research on it) to get root (and user if you are too impatient). I didn’t like the part about restarting the VM because it isn’t something that you can do on a remote machine but overall this has been a really good learning experience.&lt;/p&gt;
+</description>
+        <pubDate>Sat, 08 Aug 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/hacklab_vulnix_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/hacklab_vulnix_writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
+    
+      <item>
+        <title>Mr Robot: 1 Write-Up</title>
         <description>&lt;p&gt;MrRobot 1 is an intermediate OSCP-like machine (according to the &lt;a href=&quot;https://www.abatchy.com/2017/02/oscp-like-vulnhub-vms&quot;&gt;Abatchy’s list&lt;/a&gt;) hosted on Vulnhub. This machine is a little bit different from the other ones, in this one the goal is to read the three hidden keys in the machine.&lt;/p&gt;
 &lt;h1&gt;Network Scan&lt;/h1&gt;
 &lt;p&gt;As always, I’ve used Nmap to sweep the network and get the IP of the target machine.
 &lt;img src=&quot;netScan.png&quot; alt=&quot;NetScan&quot; /&gt;
-The IP of the target machine is 192.168.56.13.
+The IP of the target machine is 192.168.56.132.
 &lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;h1&gt;Port Scan&lt;/h1&gt;
 &lt;p&gt;&lt;img src=&quot;portScan.png&quot; alt=&quot;PortScan&quot; /&gt;
