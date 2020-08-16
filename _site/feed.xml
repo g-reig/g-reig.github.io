@@ -6,9 +6,68 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 08 Aug 2020 10:15:58 -0400</pubDate>
-    <lastBuildDate>Sat, 08 Aug 2020 10:15:58 -0400</lastBuildDate>
+    <pubDate>Sun, 16 Aug 2020 06:38:33 -0400</pubDate>
+    <lastBuildDate>Sun, 16 Aug 2020 06:38:33 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
+    
+      <item>
+        <title>HackTheBox: Traceback WriteUp</title>
+        <description>&lt;p&gt;Traceback is an easy rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;The IP is posted in the HackTheBox webpage, so it isn’t necessary to do a network scan.
+&lt;img src=&quot;port_scan.png&quot; alt=&quot;Port Scan&quot; /&gt;
+From the port scan we can see that there are only two ports open (22 and 80).
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;WebPage Enumeration&lt;/h1&gt;
+&lt;p&gt;The root page contains a message telling us that the website has been owned. If we read the source code we can see a little more information.
+&lt;img src=&quot;web_src.png&quot; alt=&quot;Web SRC&quot; /&gt;
+Searching the name “Xh4H” in Google we can find a github page with some repositories. One of them has the same text that was in the commentary and some webshells.
+&lt;img src=&quot;webshells.png&quot; alt=&quot;WebShells&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;WebShell Fuzzing&lt;/h1&gt;
+&lt;p&gt;I cloned the repository in my machine and created a wordlist with the shells inside of it.
+&lt;img src=&quot;webshells_wordlist1.png&quot; alt=&quot;WebShells Wordlist 1&quot; /&gt;
+&lt;img src=&quot;webshells_wordlist2.png&quot; alt=&quot;WebShells Wordlist 2&quot; /&gt;
+After this I used Wfuzz to fuzz the website using the wordlist to find the webshell.
+&lt;img src=&quot;webfuzzing.png&quot; alt=&quot;webfuzzing&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Using the WebShell&lt;/h1&gt;
+&lt;p&gt;Reading the source code for the webshell we can see the default credentials.
+&lt;img src=&quot;def_creds.png&quot; alt=&quot;Default Credentials&quot; /&gt;
+If we go to http://10.10.10.181/smevk.php we can see that the webshell has a login page.
+&lt;img src=&quot;login_page.png&quot; alt=&quot;Login page&quot; /&gt;
+The webshell has a console incorporated but I prefer to have a “normal” console so I edited a reverse shell that already was on the machine to connect to my machine.
+&lt;img src=&quot;files_web.png&quot; alt=&quot;Files Web&quot; /&gt;
+&lt;img src=&quot;editing_rev.png&quot; alt=&quot;Edit Reverse Shell&quot; /&gt;
+&lt;img src=&quot;connection.png&quot; alt=&quot;Connection&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;PrivEsc to Sysadmin&lt;/h1&gt;
+&lt;p&gt;There is a text file inside the webadmin home.
+&lt;img src=&quot;notes_txt.png&quot; alt=&quot;Note.txt&quot; /&gt;
+If we run “sudo -l” we can see that webadmin can run a lua interpreter as sysadmin, so we can just run “os.execute(‘/bin/sh’)” to get a shell.
+&lt;img src=&quot;sudo_webadmin.png&quot; alt=&quot;sudo -l webadmin&quot; /&gt;
+&lt;img src=&quot;shell_sysadmin.png&quot; alt=&quot;Shell sysadmin&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
+&lt;p&gt;Running LinPeas we can see some interesting files that can be written in the /etc directory.
+&lt;img src=&quot;linpeas.png&quot; alt=&quot;LinPeas&quot; /&gt;
+These files are executed by root every time that someone login (in this case, using SSH). We don’t have the password for the sysadmin user but we can write inside of .ssh/authorized_keys, which means that we can use a public and private key pair to authenticate without knowing the password.
+&lt;img src=&quot;ssh-keygen.png&quot; alt=&quot;Generate key&quot; /&gt;
+&lt;img src=&quot;add_key.png&quot; alt=&quot;Add key&quot; /&gt;
+Now we have access to the machine using SSH, but we still need to get an interactive root shell. To do so I added a new entry inside /etc/sudoers that allowed sysadmin to run commands as root without suppling the password.
+&lt;img src=&quot;modified-00.png&quot; alt=&quot;00-header modified&quot; /&gt;
+&lt;img src=&quot;privesc-root.png&quot; alt=&quot;PrivEsc to root&quot; /&gt;
+&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;This machine is really easy even though is easy to miss the /etc/update-motd.d files if you don’t know what they do. This is the second time that I solve this machine, just because I didn’t take notes the first time and I wanted to have some writeups from HackTheBox.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 16 Aug 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/htb_traceback_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/htb_traceback_writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
     
       <item>
         <title>HackLab: Vulnix Write-Up</title>

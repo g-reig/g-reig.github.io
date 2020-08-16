@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> HackTheBox: Traceback WriteUp —  &raquo;  Barvent</title>
+<meta name="description" content="Barvent's technology blog
+">
+<meta name="keywords" content="">
+<link rel="canonical" href="http://localhost:4000/write-ups/htb_traceback_writeup/">
+        
+
+
+
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="HackTheBox: Traceback WriteUp" />
+<meta name="twitter:description" content="Barvent's technology blog
+" />
+<meta name="twitter:image" content="http://localhost:4000" />
+
+<!-- Google plus -->
+<meta name="author" content="">
+<link rel="author" href="">
+
+<!-- Open Graph -->
+<meta property="og:locale" content="">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HackTheBox: Traceback WriteUp">
+<meta property="og:description" content="Barvent's technology blog
+">
+<meta property="og:url" content="http://localhost:4000/write-ups/htb_traceback_writeup/">
+<meta property="og:site_name" content="Barvent">
+
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="/assets/vendor/normalize-css/normalize.css">
+<link rel="stylesheet" href="/css/main.css">
+
+  <link rel="stylesheet" href="/assets/vendor/highlight/styles/solarized_dark.css">
+
+<link rel="stylesheet" href="/assets/vendor/font-awesome/css/font-awesome.css">
+
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header class="header">
+    <div class="navigation">
+        <a href="/" class="logo">Barvent</a>
+
+        <ul class="menu">
+            <li class="menu__entry"><a href="/about">About</a></li>
+            <li class="menu__entry"><a href="/">Blog</a></li>
+            <li class="menu__entry"><a href="/categories">Categories</a></li>
+        </ul>
+    </div>
+
+    <ul class="social-links">
+        
+
+        
+    </ul>
+</header>
+
+            <h1 class="page-title post-title">
+    <div class="page-title__text post-title__text">HackTheBox: Traceback WriteUp</div>
+    <div class="page-title__subtitle post-title__subtitle"></div>
+</h1>
+
+<div class="content">
+    <p>Traceback is an easy rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt</p>
+<h1>Port Scan</h1>
+<p>The IP is posted in the HackTheBox webpage, so it isn’t necessary to do a network scan.
+<img src="port_scan.png" alt="Port Scan" />
+From the port scan we can see that there are only two ports open (22 and 80).
+<br /><br /></p>
+<h1>WebPage Enumeration</h1>
+<p>The root page contains a message telling us that the website has been owned. If we read the source code we can see a little more information.
+<img src="web_src.png" alt="Web SRC" />
+Searching the name “Xh4H” in Google we can find a github page with some repositories. One of them has the same text that was in the commentary and some webshells.
+<img src="webshells.png" alt="WebShells" />
+<br /></p>
+<h1>WebShell Fuzzing</h1>
+<p>I cloned the repository in my machine and created a wordlist with the shells inside of it.
+<img src="webshells_wordlist1.png" alt="WebShells Wordlist 1" />
+<img src="webshells_wordlist2.png" alt="WebShells Wordlist 2" />
+After this I used Wfuzz to fuzz the website using the wordlist to find the webshell.
+<img src="webfuzzing.png" alt="webfuzzing" />
+<br /></p>
+<h1>Using the WebShell</h1>
+<p>Reading the source code for the webshell we can see the default credentials.
+<img src="def_creds.png" alt="Default Credentials" />
+If we go to http://10.10.10.181/smevk.php we can see that the webshell has a login page.
+<img src="login_page.png" alt="Login page" />
+The webshell has a console incorporated but I prefer to have a “normal” console so I edited a reverse shell that already was on the machine to connect to my machine.
+<img src="files_web.png" alt="Files Web" />
+<img src="editing_rev.png" alt="Edit Reverse Shell" />
+<img src="connection.png" alt="Connection" />
+<br /></p>
+<h1>PrivEsc to Sysadmin</h1>
+<p>There is a text file inside the webadmin home.
+<img src="notes_txt.png" alt="Note.txt" />
+If we run “sudo -l” we can see that webadmin can run a lua interpreter as sysadmin, so we can just run “os.execute(‘/bin/sh’)” to get a shell.
+<img src="sudo_webadmin.png" alt="sudo -l webadmin" />
+<img src="shell_sysadmin.png" alt="Shell sysadmin" /></p>
+<h1>PrivEsc to Root</h1>
+<p>Running LinPeas we can see some interesting files that can be written in the /etc directory.
+<img src="linpeas.png" alt="LinPeas" />
+These files are executed by root every time that someone login (in this case, using SSH). We don’t have the password for the sysadmin user but we can write inside of .ssh/authorized_keys, which means that we can use a public and private key pair to authenticate without knowing the password.
+<img src="ssh-keygen.png" alt="Generate key" />
+<img src="add_key.png" alt="Add key" />
+Now we have access to the machine using SSH, but we still need to get an interactive root shell. To do so I added a new entry inside /etc/sudoers that allowed sysadmin to run commands as root without suppling the password.
+<img src="modified-00.png" alt="00-header modified" />
+<img src="privesc-root.png" alt="PrivEsc to root" />
+<br /></p>
+<h1>Conclusion</h1>
+<p>This machine is really easy even though is easy to miss the /etc/update-motd.d files if you don’t know what they do. This is the second time that I solve this machine, just because I didn’t take notes the first time and I wanted to have some writeups from HackTheBox.</p>
+
+</div>
+
+<div class="about">
+    <div class="about__devider">*****</div>
+    <div class="about__text">
+        Written by <strong>  Barvent </strong>
+        on <strong>16 August 2020</strong>
+    </div>
+</div>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'barvent-github-io';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+
+        </div>
+
+        <script src="/assets/vendor/highlight/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+        
+    </body>
+</html>
