@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "HackTheBox: Traceback WriteUp"
+title: "HackTheBox: Traceback Write-Up"
 categories: [write-ups]
 permalink: /write-ups/htb_traceback_writeup/
 ---
