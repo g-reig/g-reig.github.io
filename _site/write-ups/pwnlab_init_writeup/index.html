@@ -98,9 +98,9 @@ Here we can read the credentials of the root user in the MySQL database.</p>
 <figure class="highlight"><pre><code class="language-php" data-lang="php"><span class="cp">&lt;?php</span>
 <span class="c1">//Multilingual. Not implemented yet.</span>
 <span class="c1">//setcookie("lang","en.lang.php");</span>
-<span class="k">if</span> <span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$_COOKIE</span><span class="p">[</span><span class="s1">'lang'</span><span class="p">]))</span>
+<span class="k">if</span> <span class="p">(</span><span class="k">isset</span><span class="p">(</span><span class="nv">$_COOKIE</span><span class="p">[</span><span class="s1">'lang'</span><span class="p">]))</span>
 <span class="p">{</span>
-        <span class="k">include</span><span class="p">(</span><span class="s2">"lang/"</span><span class="o">.</span><span class="nv">$_COOKIE</span><span class="p">[</span><span class="s1">'lang'</span><span class="p">]);</span>
+        <span class="k">include</span><span class="p">(</span><span class="s2">"lang/"</span><span class="mf">.</span><span class="nv">$_COOKIE</span><span class="p">[</span><span class="s1">'lang'</span><span class="p">]);</span>
 <span class="p">}</span>
 <span class="c1">// Not implemented yet.</span>
 <span class="cp">?&gt;</span>
@@ -114,9 +114,9 @@ Here we can read the credentials of the root user in the MySQL database.</p>
 [ <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"/"</span><span class="nt">&gt;</span>Home<span class="nt">&lt;/a&gt;</span> ] [ <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"?page=login"</span><span class="nt">&gt;</span>Login<span class="nt">&lt;/a&gt;</span> ] [ <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"?page=upload"</span><span class="nt">&gt;</span>Upload<span class="nt">&lt;/a&gt;</span> ]
 <span class="nt">&lt;hr/&gt;&lt;br/&gt;</span>
 <span class="cp">&lt;?php</span>
-        <span class="k">if</span> <span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'page'</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="k">isset</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'page'</span><span class="p">]))</span>
         <span class="p">{</span>
-                <span class="k">include</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'page'</span><span class="p">]</span><span class="o">.</span><span class="s2">".php"</span><span class="p">);</span>
+                <span class="k">include</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'page'</span><span class="p">]</span><span class="mf">.</span><span class="s2">".php"</span><span class="p">);</span>
         <span class="p">}</span>
         <span class="k">else</span>
         <span class="p">{</span>
@@ -133,20 +133,20 @@ Here we can read the credentials of the root user in the MySQL database.</p>
 <figure class="highlight"><pre><code class="language-php" data-lang="php"><span class="cp">&lt;?php</span>
 <span class="nb">session_start</span><span class="p">();</span>
 <span class="k">require</span><span class="p">(</span><span class="s2">"config.php"</span><span class="p">);</span>
-<span class="nv">$mysqli</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">mysqli</span><span class="p">(</span><span class="nv">$server</span><span class="p">,</span> <span class="nv">$username</span><span class="p">,</span> <span class="nv">$password</span><span class="p">,</span> <span class="nv">$database</span><span class="p">);</span>
+<span class="nv">$mysqli</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">mysqli</span><span class="p">(</span><span class="nv">$server</span><span class="p">,</span> <span class="nv">$username</span><span class="p">,</span> <span class="nv">$password</span><span class="p">,</span> <span class="nv">$database</span><span class="p">);</span>
 
-<span class="k">if</span> <span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">'user'</span><span class="p">])</span> <span class="k">and</span> <span class="nb">isset</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">'pass'</span><span class="p">]))</span>
+<span class="k">if</span> <span class="p">(</span><span class="k">isset</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">'user'</span><span class="p">])</span> <span class="k">and</span> <span class="k">isset</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">'pass'</span><span class="p">]))</span>
 <span class="p">{</span>
         <span class="nv">$luser</span> <span class="o">=</span> <span class="nv">$_POST</span><span class="p">[</span><span class="s1">'user'</span><span class="p">];</span>
         <span class="nv">$lpass</span> <span class="o">=</span> <span class="nb">base64_encode</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">'pass'</span><span class="p">]);</span>
 
-        <span class="nv">$stmt</span> <span class="o">=</span> <span class="nv">$mysqli</span><span class="o">-&gt;</span><span class="na">prepare</span><span class="p">(</span><span class="s2">"SELECT * FROM users WHERE user=? AND pass=?"</span><span class="p">);</span>
-        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bind_param</span><span class="p">(</span><span class="s1">'ss'</span><span class="p">,</span> <span class="nv">$luser</span><span class="p">,</span> <span class="nv">$lpass</span><span class="p">);</span>
+        <span class="nv">$stmt</span> <span class="o">=</span> <span class="nv">$mysqli</span><span class="o">-&gt;</span><span class="nf">prepare</span><span class="p">(</span><span class="s2">"SELECT * FROM users WHERE user=? AND pass=?"</span><span class="p">);</span>
+        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="nf">bind_param</span><span class="p">(</span><span class="s1">'ss'</span><span class="p">,</span> <span class="nv">$luser</span><span class="p">,</span> <span class="nv">$lpass</span><span class="p">);</span>
 
-        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">execute</span><span class="p">();</span>
-        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">store_Result</span><span class="p">();</span>
+        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="nf">execute</span><span class="p">();</span>
+        <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="nf">store_Result</span><span class="p">();</span>
 
-        <span class="k">if</span> <span class="p">(</span><span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">num_rows</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nv">$stmt</span><span class="o">-&gt;</span><span class="n">num_rows</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
         <span class="p">{</span>
                 <span class="nv">$_SESSION</span><span class="p">[</span><span class="s1">'user'</span><span class="p">]</span> <span class="o">=</span> <span class="nv">$luser</span><span class="p">;</span>
                 <span class="nb">header</span><span class="p">(</span><span class="s1">'Location: ?page=upload'</span><span class="p">);</span>
