@@ -6,9 +6,81 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 20 Aug 2020 08:43:55 -0400</pubDate>
-    <lastBuildDate>Thu, 20 Aug 2020 08:43:55 -0400</lastBuildDate>
+    <pubDate>Sun, 23 Aug 2020 05:14:58 -0400</pubDate>
+    <lastBuildDate>Sun, 23 Aug 2020 05:14:58 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
+    
+      <item>
+        <title>HackTheBox: Magic WriteUp</title>
+        <description>&lt;p&gt;Magic is a medium rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt.&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;The IP is posted in the HackTheBox webpage, so it isn’t necessary to do a network scan.
+&lt;img src=&quot;portscan.png&quot; alt=&quot;Port Scan&quot; /&gt;
+There are only two ports open, 22 and 80.&lt;/p&gt;
+&lt;h1&gt;Web Enumeration&lt;/h1&gt;
+&lt;p&gt;In port 80 we can see a website. In the bottom left of the root page we can see that it allows to upload images if we login successfully.
+&lt;img src=&quot;rootWeb.png&quot; alt=&quot;Root web&quot; /&gt;
+In the login page we can see a simple login form which can be bypassed in two different ways.
+&lt;img src=&quot;loginWeb.png&quot; alt=&quot;Login web&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Login Bypass 1&lt;/h1&gt;
+&lt;p&gt;The login form is vulnerable to SQL Injection. Using username=a’ OR ‘1’=’1 and password=b’ OR ‘1’=’1 we get a redirection to upload.php.
+&lt;img src=&quot;sqli.png&quot; alt=&quot;sqli&quot; /&gt;
+The vulnerable part of the code can be read once we get shell access to the machine.
+&lt;img src=&quot;vulnCode.png&quot; alt=&quot;vulnCode&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Login Bypass 2&lt;/h1&gt;
+&lt;p&gt;Using gobuster we can discover the existence of the upload.php page (the output.txt was a file left by another user attempting to hack the machine, so I ignored it).
+&lt;img src=&quot;gobuster.png&quot; alt=&quot;gobuster&quot; /&gt;
+If we intercept the response to upload.php we can see that it is redirecting us to login.php, but there is more content below the redirection.
+&lt;img src=&quot;uploadRedirection.png&quot; alt=&quot;Upload redirection&quot; /&gt;
+We can just rewrite the “302 Found” status code to “200 OK” to access to the upload.php page.
+&lt;img src=&quot;uploadWeb.png&quot; alt=&quot;Upload page&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Uploading a Shell&lt;/h1&gt;
+&lt;p&gt;Uploading a .php file gets us a message with the allowed file types.
+&lt;img src=&quot;allowedTypes.png&quot; alt=&quot;Allowed types&quot; /&gt;
+Using the magic bytes for a JPEG file we can bypass the file type restriction and we can find the location of the uploaded file by looking at the source code.
+&lt;img src=&quot;typeRestriction.png&quot; alt=&quot;Bypass restriction&quot; /&gt;
+&lt;img src=&quot;findingFile.png&quot; alt=&quot;Finding the file&quot; /&gt;
+&lt;img src=&quot;rce.png&quot; alt=&quot;RCE&quot; /&gt;
+Using this code we can get a more interactive shell and then we can use a python reverse shell to get access to the machine.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-php&quot; data-lang=&quot;php&quot;&gt;&lt;span class=&quot;cp&quot;&gt;&amp;lt;?php&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;system&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'cmd'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;?&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;revshell1.png&quot; alt=&quot;Reverse Shell 1&quot; /&gt;
+&lt;img src=&quot;revshell2.png&quot; alt=&quot;Reverse Shell 2&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;MySQL Enumeration and PrivEsc&lt;/h1&gt;
+&lt;p&gt;Reading the php files we can obtain the credentials to access the database, but there isn’t a MySQL client installed in the machine. To solve this we can use “mysqldump” to dump the contents of the tables in a file.
+&lt;img src=&quot;mysqlcredentials.png&quot; alt=&quot;MySQL Credentials&quot; /&gt;
+&lt;img src=&quot;dumping.png&quot; alt=&quot;Dumping DB&quot; /&gt;
+Inside the dump we can see a line with the username and password used to access to the upload page.
+&lt;img src=&quot;creds.png&quot; alt=&quot;Credentials&quot; /&gt;
+Enumerating the users with a valid shell we can see that there is a user called theseus. Theseus is also using this password to access his user in the machine.
+&lt;img src=&quot;userEnum.png&quot; alt=&quot;User enum&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;SSH Access&lt;/h1&gt;
+&lt;p&gt;Reading the sshd_config file I found that ssh has password authentication disabled, so I used the su command to change to user theseus and added a public key in the .ssh/authorized_keys file to get a more stable shell.
+&lt;img src=&quot;authorized_keys.png&quot; alt=&quot;Authorized keys&quot; /&gt;
+&lt;img src=&quot;ssh-login.png&quot; alt=&quot;SSH login&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
+&lt;p&gt;There is a SetUID binary that doesn’t exist in default Linux installations. When I executed it in my machine I found this error.
+&lt;img src=&quot;sysinfo.png&quot; alt=&quot;Sysinfo&quot; /&gt;
+&lt;img src=&quot;sysinfo_error.png&quot; alt=&quot;Sysinfo error&quot; /&gt;
+This error means that the binary isn’t using absolute paths, so we can inject our code in there. To do so I created a file called fdisk (remember to grant it execution permission) and I added the current working directory to the PATH environment variable (use PATH=.:$PATH).&lt;br /&gt;
+The code inside fdisk:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;theseus    ALL=(ALL:ALL) ALL&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; /etc/sudoers&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Running the sysinfo binary from the same directory where fdisk is located grants sudo rights to theseus.
+&lt;img src=&quot;pwn.png&quot; alt=&quot;Pwn&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;This machine is pretty easy if you know the tricks that are needed to progress. The most problematic part was finding the SetUID binary to do the privesc as there were a lot of files to check.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 23 Aug 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/htb_magic_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/htb_magic_writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
     
       <item>
         <title>SickOS 1.2 Write-Up</title>
@@ -802,23 +874,6 @@ I’ve learnt how to use the setuid() system call, which I think is pretty usefu
         
         
         <category>write-ups</category>
-        
-      </item>
-    
-      <item>
-        <title>Hello World!</title>
-        <description>&lt;p&gt;Welcome to my blog!
-&lt;br /&gt;
-This is my first post, which is going to help me test if the blog works correctly and check if I’m using the categories correctly. 
-&lt;br /&gt;
-Soon I’ll post more content, mainly write-ups about some &lt;a href=&quot;https://www.abatchy.com/2017/02/oscp-like-vulnhub-vms&quot;&gt;OSCP like machines from Vulnhub&lt;/a&gt;, but maybe I’ll post about my projects or other tech related topics.&lt;/p&gt;
-</description>
-        <pubDate>Fri, 26 Jun 2020 00:00:00 -0400</pubDate>
-        <link>http://localhost:4000/misc/hello_world/</link>
-        <guid isPermaLink="true">http://localhost:4000/misc/hello_world/</guid>
-        
-        
-        <category>misc</category>
         
       </item>
     

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> HackTheBox: Magic WriteUp —  &raquo;  Barvent</title>
+<meta name="description" content="Barvent's technology blog
+">
+<meta name="keywords" content="">
+<link rel="canonical" href="http://localhost:4000/write-ups/htb_magic_writeup/">
+        
+
+
+
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="HackTheBox: Magic WriteUp" />
+<meta name="twitter:description" content="Barvent's technology blog
+" />
+<meta name="twitter:image" content="http://localhost:4000" />
+
+<!-- Google plus -->
+<meta name="author" content="">
+<link rel="author" href="">
+
+<!-- Open Graph -->
+<meta property="og:locale" content="">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HackTheBox: Magic WriteUp">
+<meta property="og:description" content="Barvent's technology blog
+">
+<meta property="og:url" content="http://localhost:4000/write-ups/htb_magic_writeup/">
+<meta property="og:site_name" content="Barvent">
+
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="/assets/vendor/normalize-css/normalize.css">
+<link rel="stylesheet" href="/css/main.css">
+
+  <link rel="stylesheet" href="/assets/vendor/highlight/styles/solarized_dark.css">
+
+<link rel="stylesheet" href="/assets/vendor/font-awesome/css/font-awesome.css">
+
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header class="header">
+    <div class="navigation">
+        <a href="/" class="logo">Barvent</a>
+
+        <ul class="menu">
+            <li class="menu__entry"><a href="/about">About</a></li>
+            <li class="menu__entry"><a href="/">Blog</a></li>
+            <li class="menu__entry"><a href="/categories">Categories</a></li>
+        </ul>
+    </div>
+
+    <ul class="social-links">
+        
+
+        
+    </ul>
+</header>
+
+            <h1 class="page-title post-title">
+    <div class="page-title__text post-title__text">HackTheBox: Magic WriteUp</div>
+    <div class="page-title__subtitle post-title__subtitle"></div>
+</h1>
+
+<div class="content">
+    <p>Magic is a medium rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt.</p>
+<h1>Port Scan</h1>
+<p>The IP is posted in the HackTheBox webpage, so it isn’t necessary to do a network scan.
+<img src="portscan.png" alt="Port Scan" />
+There are only two ports open, 22 and 80.</p>
+<h1>Web Enumeration</h1>
+<p>In port 80 we can see a website. In the bottom left of the root page we can see that it allows to upload images if we login successfully.
+<img src="rootWeb.png" alt="Root web" />
+In the login page we can see a simple login form which can be bypassed in two different ways.
+<img src="loginWeb.png" alt="Login web" /></p>
+<h1>Login Bypass 1</h1>
+<p>The login form is vulnerable to SQL Injection. Using username=a’ OR ‘1’=’1 and password=b’ OR ‘1’=’1 we get a redirection to upload.php.
+<img src="sqli.png" alt="sqli" />
+The vulnerable part of the code can be read once we get shell access to the machine.
+<img src="vulnCode.png" alt="vulnCode" /></p>
+<h1>Login Bypass 2</h1>
+<p>Using gobuster we can discover the existence of the upload.php page (the output.txt was a file left by another user attempting to hack the machine, so I ignored it).
+<img src="gobuster.png" alt="gobuster" />
+If we intercept the response to upload.php we can see that it is redirecting us to login.php, but there is more content below the redirection.
+<img src="uploadRedirection.png" alt="Upload redirection" />
+We can just rewrite the “302 Found” status code to “200 OK” to access to the upload.php page.
+<img src="uploadWeb.png" alt="Upload page" /></p>
+<h1>Uploading a Shell</h1>
+<p>Uploading a .php file gets us a message with the allowed file types.
+<img src="allowedTypes.png" alt="Allowed types" />
+Using the magic bytes for a JPEG file we can bypass the file type restriction and we can find the location of the uploaded file by looking at the source code.
+<img src="typeRestriction.png" alt="Bypass restriction" />
+<img src="findingFile.png" alt="Finding the file" />
+<img src="rce.png" alt="RCE" />
+Using this code we can get a more interactive shell and then we can use a python reverse shell to get access to the machine.</p>
+
+<figure class="highlight"><pre><code class="language-php" data-lang="php"><span class="cp">&lt;?php</span> <span class="nb">system</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'cmd'</span><span class="p">])</span><span class="cp">?&gt;</span></code></pre></figure>
+
+<p><img src="revshell1.png" alt="Reverse Shell 1" />
+<img src="revshell2.png" alt="Reverse Shell 2" /></p>
+<h1>MySQL Enumeration and PrivEsc</h1>
+<p>Reading the php files we can obtain the credentials to access the database, but there isn’t a MySQL client installed in the machine. To solve this we can use “mysqldump” to dump the contents of the tables in a file.
+<img src="mysqlcredentials.png" alt="MySQL Credentials" />
+<img src="dumping.png" alt="Dumping DB" />
+Inside the dump we can see a line with the username and password used to access to the upload page.
+<img src="creds.png" alt="Credentials" />
+Enumerating the users with a valid shell we can see that there is a user called theseus. Theseus is also using this password to access his user in the machine.
+<img src="userEnum.png" alt="User enum" /></p>
+<h1>SSH Access</h1>
+<p>Reading the sshd_config file I found that ssh has password authentication disabled, so I used the su command to change to user theseus and added a public key in the .ssh/authorized_keys file to get a more stable shell.
+<img src="authorized_keys.png" alt="Authorized keys" />
+<img src="ssh-login.png" alt="SSH login" /></p>
+<h1>PrivEsc to Root</h1>
+<p>There is a SetUID binary that doesn’t exist in default Linux installations. When I executed it in my machine I found this error.
+<img src="sysinfo.png" alt="Sysinfo" />
+<img src="sysinfo_error.png" alt="Sysinfo error" />
+This error means that the binary isn’t using absolute paths, so we can inject our code in there. To do so I created a file called fdisk (remember to grant it execution permission) and I added the current working directory to the PATH environment variable (use PATH=.:$PATH).<br />
+The code inside fdisk:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">echo</span> <span class="s2">"theseus    ALL=(ALL:ALL) ALL"</span> <span class="o">&gt;&gt;</span> /etc/sudoers</code></pre></figure>
+
+<p>Running the sysinfo binary from the same directory where fdisk is located grants sudo rights to theseus.
+<img src="pwn.png" alt="Pwn" /></p>
+<h1>Conclusion</h1>
+<p>This machine is pretty easy if you know the tricks that are needed to progress. The most problematic part was finding the SetUID binary to do the privesc as there were a lot of files to check.</p>
+
+</div>
+
+<div class="about">
+    <div class="about__devider">*****</div>
+    <div class="about__text">
+        Written by <strong>  Barvent </strong>
+        on <strong>23 August 2020</strong>
+    </div>
+</div>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'barvent-github-io';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+
+        </div>
+
+        <script src="/assets/vendor/highlight/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+        
+    </body>
+</html>
