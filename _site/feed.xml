@@ -6,9 +6,119 @@
 </description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 24 Aug 2020 12:27:07 -0400</pubDate>
-    <lastBuildDate>Mon, 24 Aug 2020 12:27:07 -0400</lastBuildDate>
+    <pubDate>Fri, 30 Oct 2020 16:04:40 -0400</pubDate>
+    <lastBuildDate>Fri, 30 Oct 2020 16:04:40 -0400</lastBuildDate>
     <generator>Jekyll v4.1.1</generator>
+    
+      <item>
+        <title>HackTheBox: Admirer WriteUp</title>
+        <description>&lt;p&gt;Admirer is an easy rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt.&lt;br /&gt;
+It’s been a long time since I’ve posted something, that is because I am really busy with college right now so I don’t have time to solve CTFs and do the write-ups.&lt;/p&gt;
+&lt;h1&gt;Port Scan&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;portscan.png&quot; alt=&quot;Port Scan&quot; /&gt;
+We can see that there are 3 ports open with ftp, ssh and http.&lt;/p&gt;
+&lt;h1&gt;HTTP Enumeration&lt;/h1&gt;
+&lt;p&gt;Looking at the default scripts output from Nmap we can see that there is a robots.txt file with a disallowed entry.
+&lt;img src=&quot;robots.png&quot; alt=&quot;Robots&quot; /&gt;
+The entry is a directory without directory listing enabled, so I used Gobuster to enumerate the files.
+&lt;img src=&quot;gobusterAdminDir.png&quot; alt=&quot;Gobuster Admin Dir&quot; /&gt;
+There are two files, one with some names and emails and the other one with some credentials.
+&lt;img src=&quot;contacts.png&quot; alt=&quot;Contacts&quot; /&gt;
+&lt;img src=&quot;credentials.png&quot; alt=&quot;Credentials&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;FTP Authenticated Login&lt;/h1&gt;
+&lt;p&gt;FTP doesn’t have anonymous access enabled but the credentials obtained in the credentials.txt file allow us to login as ftpuser to the server. There are only two files inside the FTP server (a database dump and a tar.gz file).
+&lt;img src=&quot;ftpFiles.png&quot; alt=&quot;FTP File List&quot; /&gt;
+The database dump doesn’t have anything really interesting, but it tells us the database that is being used and some info about the server.
+&lt;img src=&quot;sqldump.png&quot; alt=&quot;SQLDump&quot; /&gt;
+The html.tar.gz seems to be an old backup of the web on port 80.
+&lt;img src=&quot;htmlList.png&quot; alt=&quot;HTML list&quot; /&gt;
+The w4ld0s_s3cr3t_d1r seems to be the same as admin-dir and the utility-scripts directory has some administration related php scripts.
+&lt;img src=&quot;utilityScriptsLs.png&quot; alt=&quot;Utility Scripts ls&quot; /&gt;
+Inside of the db_admin.php file we can read the following:
+&lt;img src=&quot;db_adminCode.png&quot; alt=&quot;DB Admin Code&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Finding Database Admin&lt;/h1&gt;
+&lt;p&gt;The utilty-scripts directory exists on the web server but it doesn’t have the db_admin.php file, which means that they’ve found an open source alternative. I used both Gobuster and Google to find the necessary file.
+&lt;img src=&quot;google.png&quot; alt=&quot;Google DBADMIN&quot; /&gt;
+The first search result on Google shows “Adminer”, which is also the name of the database (it is written in the SQLDump).
+Gobuster found a file called adminer.php inside of the utility-scripts directory.
+&lt;img src=&quot;gobusterUtScr.png&quot; alt=&quot;Gobuster utility-scripts&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;Adminer Enumeration&lt;/h1&gt;
+&lt;p&gt;The credentials of the database are inside the index.php file in the backup, but they don’t work with the Adminer page.
+&lt;img src=&quot;indexBakCred.png&quot; alt=&quot;Backup credentials&quot; /&gt;
+&lt;img src=&quot;loginFail.png&quot; alt=&quot;Login failed&quot; /&gt;
+As we can see in the login failed image the installed version of Adminer is 4.6.2, which is &lt;a href=&quot;https://www.foregenix.com/blog/serious-vulnerability-discovered-in-adminer-tool&quot;&gt;vulnerable and leads to file disclosure&lt;/a&gt;.&lt;/p&gt;
+&lt;h1&gt;Exploiting Adminer&lt;/h1&gt;
+&lt;p&gt;To exploit the vulnerability we need to have a mysql server exposed to the network with users that have remote access and permissions to write in a table.&lt;br /&gt;
+I changed the bind address inside the /etc/mysql/mariadb.conf.d/50-server.cnf file.
+&lt;img src=&quot;adminerexp1.png&quot; alt=&quot;Bind Address&quot; /&gt;
+&lt;img src=&quot;adminerexp2.png&quot; alt=&quot;Starting the server&quot; /&gt;
+&lt;img src=&quot;adminerexp3.png&quot; alt=&quot;Create user and GRANT&quot; /&gt;
+&lt;img src=&quot;adminerexp4.png&quot; alt=&quot;Create the table&quot; /&gt;
+Once all the preparations are done we only need to connect to our server using the Adminer of the machine.
+&lt;img src=&quot;adminerLogin1.png&quot; alt=&quot;Adminer Login&quot; /&gt;
+&lt;img src=&quot;adminerLogin2.png&quot; alt=&quot;Adminer Login Success&quot; /&gt;
+Then we can execute this query with the index.php file to dump the current database credentials into our SQL server:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span class=&quot;k&quot;&gt;LOAD&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;DATA&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;local&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;INFILE&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;&quot;nameOfFile&quot;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;INTO&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;query1.png&quot; alt=&quot;Query Executed&quot; /&gt;
+&lt;img src=&quot;query2.png&quot; alt=&quot;Credentials&quot; /&gt;&lt;/p&gt;
+&lt;h1&gt;SSH as Waldo&lt;/h1&gt;
+&lt;p&gt;The credentials found using the file disclosure can be used to access the machine as the waldo user.
+&lt;img src=&quot;sshWaldo.png&quot; alt=&quot;SSH&quot; /&gt;
+Running the “sudo -l” command we can see that waldo can execute the “/opt/scripts/admin_tasks.sh” as root while preserving his environment variables.
+&lt;img src=&quot;sudo-l.png&quot; alt=&quot;Sudo -l&quot; /&gt;
+This code calls a python script that backups the web files:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;backup_web&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$EUID&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-eq&lt;/span&gt; 0 &lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;then
+        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Running backup script in the background, it might take a while...&quot;&lt;/span&gt;
+        /opt/scripts/backup.py &amp;amp;
+    &lt;span class=&quot;k&quot;&gt;else
+        &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Insufficient privileges to perform the selected operation.&quot;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;fi&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The python script imports a function from the shutil module and executes it with three arguments:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;c1&quot;&gt;#!/usr/bin/python3
+&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;shutil&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;make_archive&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;src&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'/var/www/html/'&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# old ftp directory, not used anymore
+#dst = '/srv/ftp/html'
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;dst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'/var/backups/html'&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;make_archive&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'gztar'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;src&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
+&lt;p&gt;Reading the python documentation I found that python has a variable that specifies the search path for the modules, which is initialized using the PYTHONPATH environment variable. If we change the PYTHONPATH we can inject a malicious module and run it as root.
+&lt;img src=&quot;PYTHONPATHinfo.png&quot; alt=&quot;PYTHONPATH info&quot; /&gt;
+I wrote this module, which grants waldo sudo privileges to run commands as every user (I tried using a reverse shell, but it didn’t work because the process was getting sent to background).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;make_archive&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/etc/sudoers&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;a&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;waldo    ALL=(ALL:ALL) ALL&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;privesc.png&quot; alt=&quot;PrivESC&quot; /&gt;&lt;/p&gt;
+
+&lt;h1&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;This machine focuses on enumerating the web server, which was an unknown topic for me the first time I attempted it. If you are familiar with this then the machine is pretty straightforward until the privilege escalation part, where I had to spend some time because I didn’t know anything about the python module importing mechanism.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 30 Oct 2020 00:00:00 -0400</pubDate>
+        <link>http://localhost:4000/write-ups/htb_admirer_writeup/</link>
+        <guid isPermaLink="true">http://localhost:4000/write-ups/htb_admirer_writeup/</guid>
+        
+        
+        <category>write-ups</category>
+        
+      </item>
     
       <item>
         <title>pWnOS v2.0 Write-Up</title>
@@ -657,167 +767,6 @@ I’ve been practising buffer overflow and I’ve done some HackTheBox write-ups
         <pubDate>Fri, 31 Jul 2020 00:00:00 -0400</pubDate>
         <link>http://localhost:4000/write-ups/kioptrix_2014_writeup/</link>
         <guid isPermaLink="true">http://localhost:4000/write-ups/kioptrix_2014_writeup/</guid>
-        
-        
-        <category>write-ups</category>
-        
-      </item>
-    
-      <item>
-        <title>PwnLab: Init Write-Up</title>
-        <description>&lt;p&gt;PwnLab is really easy boot to root VM hosted on Vulnhub. This is the last easy machine in the &lt;a href=&quot;https://www.abatchy.com/2017/02/oscp-like-vulnhub-vms&quot;&gt;abatchys list&lt;/a&gt;
-(I don’t have the write-ups for the first four levels of Kioptrix, but I don’t feel like doing them again just for the write-up). The goal is to get root in the machine and read the flag.&lt;/p&gt;
-&lt;h1&gt;Network Scan&lt;/h1&gt;
-&lt;p&gt;As always I used Nmap to do a ping scan on the entire subnet and get the IP of the vulnerable box.
-&lt;img src=&quot;networkscan.png&quot; alt=&quot;Network Scan&quot; /&gt;
-In this case, the IP was 192.168.56.129
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Port Scan&lt;/h1&gt;
-&lt;p&gt;Doing the port scan (using Nmap again) we can see that there aren’t a lot open ports. The most interesting ones are 80 and 3306 (HTTP and MySQL). I couldn’t find what was in port 54852, but it wasn’t necessary to get the foothold.
-&lt;img src=&quot;portscan.png&quot; alt=&quot;Port Scan&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Web Enumeration&lt;/h1&gt;
-&lt;p&gt;From the Nmap default scripts output we can see that the port 80 has an Apache 2.4.10 webserver, which doesn’t appear to be vulnerable to anything.&lt;br /&gt;
-Running gobuster we can see some php pages, being the config.php the most interesting one because usually configuration files contain credentials.
-&lt;img src=&quot;gobust.png&quot; alt=&quot;Gobuster&quot; /&gt;
-In the webserver we can see the following pages:
-&lt;img src=&quot;rootDir.png&quot; alt=&quot;rootDir&quot; /&gt;
-&lt;img src=&quot;loginPage.png&quot; alt=&quot;Login page&quot; /&gt;
-The login page isn’t vulnerable to SQL Injection, but the root page is vulnerable to Local File Inclusion (LFI). Using &lt;a href=&quot;https://highon.coffee/blog/lfi-cheat-sheet/&quot;&gt;a trick that I found on the Internet&lt;/a&gt; I was able to read the source code for all the php files.&lt;/p&gt;
-&lt;h3&gt;Contents of config.php:&lt;/h3&gt;
-&lt;p&gt;&lt;img src=&quot;LFIconfig1.png&quot; alt=&quot;LFI Config 1&quot; /&gt;
-&lt;img src=&quot;LFIconfig2.png&quot; alt=&quot;LFI Config 2&quot; /&gt;
-Here we can read the credentials of the root user in the MySQL database.&lt;/p&gt;
-&lt;h3&gt;Contents of index.php:&lt;/h3&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-php&quot; data-lang=&quot;php&quot;&gt;&lt;span class=&quot;cp&quot;&gt;&amp;lt;?php&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//Multilingual. Not implemented yet.&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//setcookie(&quot;lang&quot;,&quot;en.lang.php&quot;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;isset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_COOKIE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'lang'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]))&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;include&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;lang/&quot;&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_COOKIE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'lang'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// Not implemented yet.&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;?&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;html&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;head&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;title&amp;gt;&lt;/span&gt;PwnLab Intranet Image Hosting&lt;span class=&quot;nt&quot;&gt;&amp;lt;/title&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/head&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;body&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;center&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;img&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;src=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;images/pwnlab.png&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&amp;lt;br&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
-[ &lt;span class=&quot;nt&quot;&gt;&amp;lt;a&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;href=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;Home&lt;span class=&quot;nt&quot;&gt;&amp;lt;/a&amp;gt;&lt;/span&gt; ] [ &lt;span class=&quot;nt&quot;&gt;&amp;lt;a&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;href=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;?page=login&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;Login&lt;span class=&quot;nt&quot;&gt;&amp;lt;/a&amp;gt;&lt;/span&gt; ] [ &lt;span class=&quot;nt&quot;&gt;&amp;lt;a&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;href=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;?page=upload&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;Upload&lt;span class=&quot;nt&quot;&gt;&amp;lt;/a&amp;gt;&lt;/span&gt; ]
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;hr/&amp;gt;&amp;lt;br/&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;&amp;lt;?php&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;isset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'page'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]))&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;include&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'page'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;.php&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Use this server to upload and share image files inside the intranet&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;?&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/center&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/body&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/html&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;Here we can see two sources of LFI, the first one being the lang cookie and the second one being the page GET argument. The one in the cookie allows us to include files with an extension different from .php.&lt;/p&gt;
-&lt;h3&gt;Contents of login.php:&lt;/h3&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-php&quot; data-lang=&quot;php&quot;&gt;&lt;span class=&quot;cp&quot;&gt;&amp;lt;?php&lt;/span&gt;
-&lt;span class=&quot;nb&quot;&gt;session_start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;config.php&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;$mysqli&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;mysqli&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$server&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$username&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$database&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;isset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'user'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;isset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'pass'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]))&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;nv&quot;&gt;$luser&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$_POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'user'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
-        &lt;span class=&quot;nv&quot;&gt;$lpass&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;base64_encode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$_POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'pass'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-
-        &lt;span class=&quot;nv&quot;&gt;$stmt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$mysqli&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;prepare&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SELECT * FROM users WHERE user=? AND pass=?&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;nv&quot;&gt;$stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;bind_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'ss'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$luser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$lpass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-        &lt;span class=&quot;nv&quot;&gt;$stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;nv&quot;&gt;$stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;store_Result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;num_rows&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;nv&quot;&gt;$_SESSION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'user'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$luser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                &lt;span class=&quot;nb&quot;&gt;header&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Location: ?page=upload'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Login failed.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cp&quot;&gt;?&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;form&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;action=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;method=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;POST&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;label&amp;gt;&lt;/span&gt;Username: &lt;span class=&quot;nt&quot;&gt;&amp;lt;/label&amp;gt;&amp;lt;input&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;user&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;test&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;user&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&amp;lt;br&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;label&amp;gt;&lt;/span&gt;Password: &lt;span class=&quot;nt&quot;&gt;&amp;lt;/label&amp;gt;&amp;lt;input&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;pass&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;password&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;pass&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&amp;lt;br&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;input&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;submit&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;submit&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;value=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Login&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/form&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;cp&quot;&gt;&amp;lt;?php&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;Reading the source code we can confirm that it isn’t vulnerable to SQL Injection and that the passwords are base 64 encoded inside of the database.
-&lt;br /&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;MySQL Enumeration&lt;/h1&gt;
-&lt;p&gt;We can access the MySQL server using the credentials inside of the config.php file. 
-&lt;img src=&quot;mysql1.png&quot; alt=&quot;Accessing mysql&quot; /&gt;
-There is only one interesting database with a single table which has the usernames and the passwords for the website login page (in base 64).
-&lt;img src=&quot;mysql2.png&quot; alt=&quot;MySQL 2&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Remote Code Execution (Low Privilege Shell)&lt;/h1&gt;
-&lt;p&gt;We get access to the upload page once we log in. From here we can upload a php reverse shell disguised as a GIF image to bypass the file type restrictions (I explained this method in the FristiLeaks 1.3 Write-Up).&lt;br /&gt;
-Once we upload the shell, we can get its path inside of the source code.
-&lt;img src=&quot;shellupload.png&quot; alt=&quot;Uploading shell&quot; /&gt;
-&lt;img src=&quot;shellpath.png&quot; alt=&quot;Shell path&quot; /&gt;
-Using the LFI in the lang cookie we can execute the reverse shell.
-&lt;img src=&quot;lfi2rce.png&quot; alt=&quot;LFI2RCE&quot; /&gt;
-&lt;img src=&quot;lowshell.png&quot; alt=&quot;lowshell&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;PrivEsc to Mike&lt;/h1&gt;
-&lt;p&gt;Both Kent and Kane use the same credentials as they did in the webpage, so we can use the “su” command to change our user. Kent doesn’t have anything useful, but Kane has a SetUID binary in the home directory.
-&lt;img src=&quot;msgmike.png&quot; alt=&quot;msgmike&quot; /&gt;
-If we decompile the binary, we can see that is executing “cat /home/mike/msg.txt”.
-&lt;img src=&quot;msgmikedecomp.png&quot; alt=&quot;msgmike decompiled&quot; /&gt;
-As the binary is executing “cat” using a relative path, we can create a script called “cat” in a directory which is in our PATH environment variable to execute our code instead of the intended one.
-&lt;img src=&quot;mikeprivesc.png&quot; alt=&quot;privesc to mike&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;PrivEsc to Root&lt;/h1&gt;
-&lt;p&gt;In the Mikes home directory we can see another SetUID binary, but this one is owned by root.
-&lt;img src=&quot;msg2root.png&quot; alt=&quot;msg2root&quot; /&gt;
-Decompiling the binary we can see that it uses asprintf(“/bin/echo %s » root.txt”,…), so we can inject our code in there.
-&lt;img src=&quot;msg2rootdecomp.png&quot; alt=&quot;msg2root decompiled&quot; /&gt;
-In this case, I decided to compile a C program that executes “/bin/bash” as root (I know that there are easier ways, but I wanted to try this).&lt;br /&gt;&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;unistd.h&amp;gt;
-#include &amp;lt;stdio.h&amp;gt;
-#include &amp;lt;stdlib.h&amp;gt;
-&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;**&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setreuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;perror&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Setuid&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;system&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/bin/bash&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;perror&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Error executing command&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;&lt;img src=&quot;privesc2root.png&quot; alt=&quot;Privesc2root&quot; /&gt;
-&lt;br /&gt;&lt;/p&gt;
-&lt;h1&gt;Conclusion&lt;/h1&gt;
-&lt;p&gt;This is a really easy box and I didn’t have any trouble solving it, mainly because I knew all the tricks that were needed except for the LFI one.&lt;br /&gt;
-As I said before, this is the last easy box in the list, so I don’t know if I’m going to keep solving the next boxes or if I’m going to do more specific challenges to learn more before trying them (probably binary exploitation or Windows).&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 07 Jul 2020 00:00:00 -0400</pubDate>
-        <link>http://localhost:4000/write-ups/pwnlab_init_writeup/</link>
-        <guid isPermaLink="true">http://localhost:4000/write-ups/pwnlab_init_writeup/</guid>
         
         
         <category>write-ups</category>

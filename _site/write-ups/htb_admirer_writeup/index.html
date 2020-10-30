@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> HackTheBox: Admirer WriteUp —  &raquo;  Barvent</title>
+<meta name="description" content="Barvent's technology blog
+">
+<meta name="keywords" content="">
+<link rel="canonical" href="http://localhost:4000/write-ups/htb_admirer_writeup/">
+        
+
+
+
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="HackTheBox: Admirer WriteUp" />
+<meta name="twitter:description" content="Barvent's technology blog
+" />
+<meta name="twitter:image" content="http://localhost:4000" />
+
+<!-- Google plus -->
+<meta name="author" content="">
+<link rel="author" href="">
+
+<!-- Open Graph -->
+<meta property="og:locale" content="">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HackTheBox: Admirer WriteUp">
+<meta property="og:description" content="Barvent's technology blog
+">
+<meta property="og:url" content="http://localhost:4000/write-ups/htb_admirer_writeup/">
+<meta property="og:site_name" content="Barvent">
+
+        <link href='https://fonts.googleapis.com/css?family=Inconsolata:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="/assets/vendor/normalize-css/normalize.css">
+<link rel="stylesheet" href="/css/main.css">
+
+  <link rel="stylesheet" href="/assets/vendor/highlight/styles/solarized_dark.css">
+
+<link rel="stylesheet" href="/assets/vendor/font-awesome/css/font-awesome.css">
+
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header class="header">
+    <div class="navigation">
+        <a href="/" class="logo">Barvent</a>
+
+        <ul class="menu">
+            <li class="menu__entry"><a href="/about">About</a></li>
+            <li class="menu__entry"><a href="/">Blog</a></li>
+            <li class="menu__entry"><a href="/categories">Categories</a></li>
+        </ul>
+    </div>
+
+    <ul class="social-links">
+        
+
+        
+    </ul>
+</header>
+
+            <h1 class="page-title post-title">
+    <div class="page-title__text post-title__text">HackTheBox: Admirer WriteUp</div>
+    <div class="page-title__subtitle post-title__subtitle"></div>
+</h1>
+
+<div class="content">
+    <p>Admirer is an easy rated machine hosted in HackTheBox. As always, the goal is to obtain root and read the flag in /root/root.txt.<br />
+It’s been a long time since I’ve posted something, that is because I am really busy with college right now so I don’t have time to solve CTFs and do the write-ups.</p>
+<h1>Port Scan</h1>
+<p><img src="portscan.png" alt="Port Scan" />
+We can see that there are 3 ports open with ftp, ssh and http.</p>
+<h1>HTTP Enumeration</h1>
+<p>Looking at the default scripts output from Nmap we can see that there is a robots.txt file with a disallowed entry.
+<img src="robots.png" alt="Robots" />
+The entry is a directory without directory listing enabled, so I used Gobuster to enumerate the files.
+<img src="gobusterAdminDir.png" alt="Gobuster Admin Dir" />
+There are two files, one with some names and emails and the other one with some credentials.
+<img src="contacts.png" alt="Contacts" />
+<img src="credentials.png" alt="Credentials" /></p>
+<h1>FTP Authenticated Login</h1>
+<p>FTP doesn’t have anonymous access enabled but the credentials obtained in the credentials.txt file allow us to login as ftpuser to the server. There are only two files inside the FTP server (a database dump and a tar.gz file).
+<img src="ftpFiles.png" alt="FTP File List" />
+The database dump doesn’t have anything really interesting, but it tells us the database that is being used and some info about the server.
+<img src="sqldump.png" alt="SQLDump" />
+The html.tar.gz seems to be an old backup of the web on port 80.
+<img src="htmlList.png" alt="HTML list" />
+The w4ld0s_s3cr3t_d1r seems to be the same as admin-dir and the utility-scripts directory has some administration related php scripts.
+<img src="utilityScriptsLs.png" alt="Utility Scripts ls" />
+Inside of the db_admin.php file we can read the following:
+<img src="db_adminCode.png" alt="DB Admin Code" /></p>
+<h1>Finding Database Admin</h1>
+<p>The utilty-scripts directory exists on the web server but it doesn’t have the db_admin.php file, which means that they’ve found an open source alternative. I used both Gobuster and Google to find the necessary file.
+<img src="google.png" alt="Google DBADMIN" />
+The first search result on Google shows “Adminer”, which is also the name of the database (it is written in the SQLDump).
+Gobuster found a file called adminer.php inside of the utility-scripts directory.
+<img src="gobusterUtScr.png" alt="Gobuster utility-scripts" /></p>
+<h1>Adminer Enumeration</h1>
+<p>The credentials of the database are inside the index.php file in the backup, but they don’t work with the Adminer page.
+<img src="indexBakCred.png" alt="Backup credentials" />
+<img src="loginFail.png" alt="Login failed" />
+As we can see in the login failed image the installed version of Adminer is 4.6.2, which is <a href="https://www.foregenix.com/blog/serious-vulnerability-discovered-in-adminer-tool">vulnerable and leads to file disclosure</a>.</p>
+<h1>Exploiting Adminer</h1>
+<p>To exploit the vulnerability we need to have a mysql server exposed to the network with users that have remote access and permissions to write in a table.<br />
+I changed the bind address inside the /etc/mysql/mariadb.conf.d/50-server.cnf file.
+<img src="adminerexp1.png" alt="Bind Address" />
+<img src="adminerexp2.png" alt="Starting the server" />
+<img src="adminerexp3.png" alt="Create user and GRANT" />
+<img src="adminerexp4.png" alt="Create the table" />
+Once all the preparations are done we only need to connect to our server using the Adminer of the machine.
+<img src="adminerLogin1.png" alt="Adminer Login" />
+<img src="adminerLogin2.png" alt="Adminer Login Success" />
+Then we can execute this query with the index.php file to dump the current database credentials into our SQL server:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">LOAD</span> <span class="k">DATA</span> <span class="k">local</span> <span class="n">INFILE</span> <span class="nv">"nameOfFile"</span> <span class="k">INTO</span> <span class="k">TABLE</span> <span class="n">file</span><span class="p">;</span></code></pre></figure>
+
+<p><img src="query1.png" alt="Query Executed" />
+<img src="query2.png" alt="Credentials" /></p>
+<h1>SSH as Waldo</h1>
+<p>The credentials found using the file disclosure can be used to access the machine as the waldo user.
+<img src="sshWaldo.png" alt="SSH" />
+Running the “sudo -l” command we can see that waldo can execute the “/opt/scripts/admin_tasks.sh” as root while preserving his environment variables.
+<img src="sudo-l.png" alt="Sudo -l" />
+This code calls a python script that backups the web files:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">backup_web<span class="o">()</span>
+<span class="o">{</span>
+    <span class="k">if</span> <span class="o">[</span> <span class="s2">"</span><span class="nv">$EUID</span><span class="s2">"</span> <span class="nt">-eq</span> 0 <span class="o">]</span>
+    <span class="k">then
+        </span><span class="nb">echo</span> <span class="s2">"Running backup script in the background, it might take a while..."</span>
+        /opt/scripts/backup.py &amp;
+    <span class="k">else
+        </span><span class="nb">echo</span> <span class="s2">"Insufficient privileges to perform the selected operation."</span>
+    <span class="k">fi</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>The python script imports a function from the shutil module and executes it with three arguments:</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1">#!/usr/bin/python3
+</span>
+<span class="kn">from</span> <span class="nn">shutil</span> <span class="kn">import</span> <span class="n">make_archive</span>
+
+<span class="n">src</span> <span class="o">=</span> <span class="s">'/var/www/html/'</span>
+
+<span class="c1"># old ftp directory, not used anymore
+#dst = '/srv/ftp/html'
+</span>
+<span class="n">dst</span> <span class="o">=</span> <span class="s">'/var/backups/html'</span>
+
+<span class="n">make_archive</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="s">'gztar'</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span></code></pre></figure>
+
+<h1>PrivEsc to Root</h1>
+<p>Reading the python documentation I found that python has a variable that specifies the search path for the modules, which is initialized using the PYTHONPATH environment variable. If we change the PYTHONPATH we can inject a malicious module and run it as root.
+<img src="PYTHONPATHinfo.png" alt="PYTHONPATH info" />
+I wrote this module, which grants waldo sudo privileges to run commands as every user (I tried using a reverse shell, but it didn’t work because the process was getting sent to background).</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">make_archive</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span><span class="n">arg2</span><span class="p">,</span><span class="n">arg3</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">"/etc/sudoers"</span><span class="p">,</span><span class="s">"a"</span><span class="p">)</span>
+    <span class="n">f</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="s">"waldo    ALL=(ALL:ALL) ALL"</span><span class="p">)</span>
+    <span class="n">f</span><span class="p">.</span><span class="n">close</span><span class="p">()</span></code></pre></figure>
+
+<p><img src="privesc.png" alt="PrivESC" /></p>
+
+<h1>Conclusion</h1>
+<p>This machine focuses on enumerating the web server, which was an unknown topic for me the first time I attempted it. If you are familiar with this then the machine is pretty straightforward until the privilege escalation part, where I had to spend some time because I didn’t know anything about the python module importing mechanism.</p>
+
+</div>
+
+<div class="about">
+    <div class="about__devider">*****</div>
+    <div class="about__text">
+        Written by <strong>  Barvent </strong>
+        on <strong>30 October 2020</strong>
+    </div>
+</div>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'barvent-github-io';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+
+        </div>
+
+        <script src="/assets/vendor/highlight/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+        
+    </body>
+</html>
