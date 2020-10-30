@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "HackTheBox: Admirer WriteUp"
+title: "HackTheBox: Admirer Write-Up"
 categories: [write-ups]
 permalink: /write-ups/htb_admirer_writeup/
 ---
